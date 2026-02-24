@@ -65,23 +65,26 @@
                 </Grid.ColumnDefinitions>
 
                 <!-- Left side: Action buttons -->
-                <StackPanel Orientation="Horizontal" Grid.Column="0" Spacing="10">
+                <StackPanel Orientation="Horizontal" Grid.Column="0">
                     <!-- WHY: Scan for photos button -->
                     <Button Command="{Binding ScanPhotosCommand}" 
                             Content="🔍 Scan Photos" 
                             Padding="15,8"
-                            MinWidth="120"/>
+                            MinWidth="120"
+                            Margin="0,0,8,0"/>
 
                     <!-- WHY: Select/Deselect all -->
                     <Button Command="{Binding SelectAllCommand}" 
                             Content="☑️ Select All" 
                             Padding="15,8"
-                            MinWidth="100"/>
+                            MinWidth="100"
+                            Margin="0,0,8,0"/>
 
                     <Button Command="{Binding DeselectAllCommand}" 
                             Content="☐ Deselect All" 
                             Padding="15,8"
-                            MinWidth="100"/>
+                            MinWidth="100"
+                            Margin="0,0,8,0"/>
 
                     <!-- WHY: Show scan progress -->
                     <TextBlock Text="{Binding ScanProgress}" 
@@ -92,12 +95,13 @@
                 </StackPanel>
 
                 <!-- Right side: Destination folder -->
-                <StackPanel Orientation="Horizontal" Grid.Column="1" Spacing="10">
-                    <TextBlock Text="📁 Destination:" VerticalAlignment="Center"/>
+                <StackPanel Orientation="Horizontal" Grid.Column="1">
+                    <TextBlock Text="📁 Destination:" VerticalAlignment="Center" Margin="0,0,8,0"/>
                     <TextBox Text="{Binding SelectedFolder, Mode=TwoWay}" 
                             Width="300" 
                             IsReadOnly="True"
-                            VerticalAlignment="Center"/>
+                            VerticalAlignment="Center"
+                            Margin="0,0,8,0"/>
                     <Button Command="{Binding SelectFolderCommand}" 
                             Content="Browse..." 
                             Padding="15,8"/>
