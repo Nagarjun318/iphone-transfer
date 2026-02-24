@@ -24,13 +24,7 @@ jobs:
         with:
           dotnet-version: '6.0.x'
 
-      # ── 3. Add MSBuild to PATH ────────────────────────────────────────────
-      # WHY: msbuild is installed with Visual Studio on windows-latest but not
-      #      in PATH by default. This action finds and exposes it.
-      - name: Setup MSBuild
-        uses: microsoft/setup-msbuild@v2
-
-      # ── 4. Restore NuGet packages ─────────────────────────────────────────
+      # ── 3. Restore NuGet packages ─────────────────────────────────────────
       - name: Restore dependencies
         run: dotnet restore src/iPhoneTransfer.UI/iPhoneTransfer.UI.csproj
 
@@ -50,53 +44,42 @@ jobs:
           echo "version=$FULL_VERSION" >> $env:GITHUB_OUTPUT
           Write-Host "Building version: $FULL_VERSION"
 
-      # ── 6. Publish ClickOnce ──────────────────────────────────────────────
-      # WHY: msbuild /t:Publish generates the full ClickOnce deployment:
-      #   - setup.exe  (bootstrapper installer)
-      #   - Application Files/  (versioned app files)
-      #   - iPhoneTransfer.application (ClickOnce manifest)
-      # WHY absolute PublishDir: msbuild requires trailing backslash + full path
-      - name: Publish ClickOnce
+      # ── 6. Build self-contained app for GitHub Release ─────────────────
+      # WHY: dotnet publish produces a portable, self-contained app bundle
+      #      that works without requiring .NET runtime on the user's machine.
+      #      ClickOnce setup.exe is unreliable with SDK-style projects.
+      - name: Publish self-contained app
         shell: pwsh
         run: |
-          $publishDir = "${{ github.workspace }}\clickonce-output\"
-          $installUrl = "https://${{ secrets.VERCEL_PROJECT_URL }}/"
-          $appVersion = "${{ steps.version.outputs.version }}"
-          msbuild src/iPhoneTransfer.UI/iPhoneTransfer.UI.csproj `
-            /t:Publish `
-            /p:Configuration=Release `
-            /p:Platform=x64 `
-            "/p:PublishDir=$publishDir" `
-            "/p:InstallUrl=$installUrl" `
-            "/p:ApplicationVersion=$appVersion" `
-            /p:IsWebBootstrapper=true `
-            /p:UpdateEnabled=true `
-            /p:UpdateMode=Foreground `
-            /p:UpdateInterval=7 `
-            /p:UpdateIntervalUnits=Days
+          dotnet publish src/iPhoneTransfer.UI/iPhoneTransfer.UI.csproj `
+            -c Release `
+            -r win-x64 `
+            --self-contained true `
+            -p:PublishSingleFile=true `
+            -p:IncludeNativeLibrariesForSelfExtract=true `
+            -p:IncludeAllContentForSelfExtract=true `
+            -p:Version=${{ steps.version.outputs.version }} `
+            -p:Platform=x64 `
+            -o publish-output
 
-      # ── 6a. Debug: List ClickOnce output ─────────────────────────────────
-      - name: List ClickOnce output
+      # ── 6a. Create installer zip ─────────────────────────────────────────
+      - name: Package release
         shell: pwsh
         run: |
-          Write-Host "=== ClickOnce output directory ==="
-          Get-ChildItem -Path clickonce-output -Recurse | Select-Object FullName, Length | Format-Table -AutoSize
-
-      # ── 7. Create GitHub Release with setup.exe ────────────────────────
-      # WHY: Vercel blocks .exe files. GitHub Releases serves binaries reliably.
-      - name: Verify setup.exe exists
-        shell: pwsh
-        run: |
-          $setupPath = "clickonce-output\setup.exe"
-          if (Test-Path $setupPath) {
-            $size = (Get-Item $setupPath).Length
-            Write-Host "✅ setup.exe found ($size bytes)"
+          # Rename the main exe for clarity
+          $exePath = Get-ChildItem publish-output -Filter "iPhoneTransfer.exe" | Select-Object -First 1
+          if ($exePath) {
+            Write-Host "✅ Found: $($exePath.FullName) ($($exePath.Length) bytes)"
           } else {
-            Write-Host "❌ setup.exe NOT found at $setupPath"
-            Write-Host "Listing clickonce-output:"
-            Get-ChildItem -Path clickonce-output -Recurse | Select-Object FullName
+            Write-Host "Contents of publish-output:"
+            Get-ChildItem publish-output -Recurse | Select-Object FullName, Length | Format-Table -AutoSize
+            Write-Host "❌ iPhoneTransfer.exe not found"
             exit 1
           }
+          
+          # Create a zip for the release
+          Compress-Archive -Path publish-output\* -DestinationPath "iPhoneTransfer-v${{ steps.version.outputs.version }}-win-x64.zip"
+          Write-Host "✅ Created zip: iPhoneTransfer-v${{ steps.version.outputs.version }}-win-x64.zip"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -107,12 +90,15 @@ jobs:
             ## iPhone Photo Transfer v${{ steps.version.outputs.version }}
             
             ### Download
-            Download **iPhoneTransfer-Setup.exe** below to install.
+            Download the zip, extract, and run **iPhoneTransfer.exe**.
             
             ### Requirements
             - Windows 10/11 (64-bit)
             - iTunes drivers (install iTunes once, then you can uninstall it)
-          files: clickonce-output/setup.exe
+            
+            ### What's included
+            Self-contained app — no .NET runtime needed.
+          files: iPhoneTransfer-v${{ steps.version.outputs.version }}-win-x64.zip
           make_latest: true
           fail_on_unmatched_files: true
 
@@ -134,7 +120,7 @@ jobs:
           $html = Get-Content vercel-deploy/index.html -Raw
           $html = $html -replace '__VERSION__', '${{ steps.version.outputs.version }}'
           $html = $html -replace '__BUILD_DATE__', (Get-Date -Format 'MMMM d, yyyy')
-          $html = $html -replace '__SETUP_EXE_URL__', 'https://github.com/Nagarjun318/iphone-transfer/releases/latest/download/setup.exe'
+          $html = $html -replace '__SETUP_EXE_URL__', 'https://github.com/Nagarjun318/iphone-transfer/releases/latest/download/iPhoneTransfer-v${{ steps.version.outputs.version }}-win-x64.zip'
           Set-Content vercel-deploy/index.html $html
 
       # ── 9. Deploy landing page to Vercel ──────────────────────────────────
@@ -148,9 +134,9 @@ jobs:
           vercel-args: '--prod'
 
       # ── 10. Upload artifacts for debugging ───────────────────────────────
-      - name: Upload ClickOnce artifacts
+      - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: clickonce-${{ steps.version.outputs.version }}
-          path: clickonce-output/
+          name: iPhoneTransfer-${{ steps.version.outputs.version }}
+          path: publish-output/
           retention-days: 30
