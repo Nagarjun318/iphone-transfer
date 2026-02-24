@@ -185,7 +185,7 @@
                                 </Border>
 
                                 <!-- INFO AREA -->
-                                <StackPanel Grid.Row="1" Padding="8" Background="White">
+                                <StackPanel Grid.Row="1" Margin="8" Background="White">
                                     <!-- Checkbox for selection -->
                                     <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}" 
                                              Content="{Binding FileName}" 
