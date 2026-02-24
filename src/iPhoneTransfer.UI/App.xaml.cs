@@ -39,6 +39,8 @@ public partial class App : Application
                 DataContext = mainViewModel
             };
 
+            // WHY: Set as application MainWindow so app shuts down when it closes
+            MainWindow = mainWindow;
             mainWindow.Show();
         }
         catch (Exception ex)

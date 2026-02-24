@@ -49,8 +49,17 @@
                 </StackPanel>
 
                 <!-- WHY: Show when device is NOT connected -->
-                <TextBlock FontSize="14" Foreground="White" 
-                          Visibility="{Binding IsDeviceConnected, Converter={StaticResource BoolToVis}, ConverterParameter=Inverted}">
+                <TextBlock FontSize="14" Foreground="White">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Visibility" Value="Visible"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsDeviceConnected}" Value="True">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
                     ⚠️ No iPhone connected. Please connect your iPhone via USB and unlock it.
                 </TextBlock>
             </StackPanel>
@@ -113,19 +122,27 @@
         <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
             <!-- WHY: Grid lets the empty-state message overlay the ItemsControl in the same space -->
             <Grid>
-                <!-- WHY: Show message when no files scanned yet -->
+                <!-- WHY: Show message when no files scanned yet and not currently scanning -->
                 <TextBlock Text="No photos found. Click 'Scan Photos' to load media files from your iPhone."
                           HorizontalAlignment="Center"
                           VerticalAlignment="Center"
                           FontSize="16"
                           Foreground="Gray"
                           Margin="20">
-                    <TextBlock.Visibility>
-                        <MultiBinding Converter="{StaticResource BoolToVis}">
-                            <Binding Path="MediaFiles.Count" Converter="{StaticResource IsZeroConverter}"/>
-                            <Binding Path="IsScanning" Converter="{StaticResource InverseBoolConverter}"/>
-                        </MultiBinding>
-                    </TextBlock.Visibility>
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <MultiDataTrigger>
+                                    <MultiDataTrigger.Conditions>
+                                        <Condition Binding="{Binding MediaFiles.Count}" Value="0"/>
+                                        <Condition Binding="{Binding IsScanning}" Value="False"/>
+                                    </MultiDataTrigger.Conditions>
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </MultiDataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
                 </TextBlock>
 
                 <!-- WHY: ItemsControl with WrapPanel = responsive grid layout -->
@@ -162,7 +179,7 @@
                                     <!-- WHY: Grid lets Image, placeholder, and video icon all occupy same space -->
                                     <Grid>
                                         <!-- WHY: Show thumbnail if loaded -->
-                                        <Image Source="{Binding ThumbnailData}" 
+                                        <Image Source="{Binding ThumbnailData, Converter={StaticResource ByteArrayToImageConverter}}" 
                                               Stretch="Uniform"
                                               Visibility="{Binding ThumbnailData, Converter={StaticResource NullToVisConverter}}"/>
 

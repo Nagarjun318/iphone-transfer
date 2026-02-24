@@ -6,7 +6,6 @@ using iPhoneTransfer.Core.Models;
 using iPhoneTransfer.Services;
 using System.Collections.ObjectModel;
 using System.Windows;
-using Microsoft.Win32;
 
 namespace iPhoneTransfer.UI.ViewModels;
 
@@ -250,16 +249,17 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void SelectFolder()
     {
-        // WHY: OpenFolderDialog is WPF-native (.NET 6+), no WinForms dependency needed
-        var dialog = new OpenFolderDialog
+        // WHY: OpenFolderDialog is .NET 8+ only; use WinForms FolderBrowserDialog for .NET 6 compatibility
+        var dialog = new System.Windows.Forms.FolderBrowserDialog
         {
-            Title = "Select destination folder for photos and videos",
-            InitialDirectory = SelectedFolder
+            Description = "Select destination folder for photos and videos",
+            UseDescriptionForTitle = true,
+            SelectedPath = SelectedFolder
         };
 
-        if (dialog.ShowDialog() == true)
+        if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
         {
-            SelectedFolder = dialog.FolderName;
+            SelectedFolder = dialog.SelectedPath;
         }
     }
 
