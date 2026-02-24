@@ -6,7 +6,7 @@ using iPhoneTransfer.Core.Models;
 using iPhoneTransfer.Services;
 using System.Collections.ObjectModel;
 using System.Windows;
-using System.Windows.Forms; // WHY: For FolderBrowserDialog
+using WinForms = System.Windows.Forms;
 
 namespace iPhoneTransfer.UI.ViewModels;
 
@@ -251,14 +251,14 @@ public partial class MainViewModel : ObservableObject
     private void SelectFolder()
     {
         // WHY: Use WinForms FolderBrowserDialog (WPF doesn't have native folder picker)
-        using var dialog = new FolderBrowserDialog
+        using var dialog = new WinForms.FolderBrowserDialog
         {
             Description = "Select destination folder for photos and videos",
             SelectedPath = SelectedFolder,
             ShowNewFolderButton = true
         };
 
-        if (dialog.ShowDialog() == DialogResult.OK)
+        if (dialog.ShowDialog() == WinForms.DialogResult.OK)
         {
             SelectedFolder = dialog.SelectedPath;
         }
