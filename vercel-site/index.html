@@ -257,14 +257,14 @@
 
   <!-- Download Card -->
   <div class="download-card">
-    <!-- WHY setup.exe: ClickOnce bootstrapper installs .NET, then installs the app -->
-    <a href="setup.exe" class="download-btn">
+    <!-- WHY GitHub Releases: Vercel blocks .exe files; GitHub serves binaries reliably -->
+    <a href="__SETUP_EXE_URL__" class="download-btn">
       ⬇️ &nbsp; Download Setup (Windows)
     </a>
 
-    <!-- WHY .application: For users who already have .NET 6 installed -->
-    <a href="iPhoneTransfer.application" class="download-btn-secondary">
-      ⚡ Launch via ClickOnce (direct)
+    <!-- WHY: Link to GitHub releases page as fallback -->
+    <a href="https://github.com/Nagarjun318/iphone-transfer/releases/latest" class="download-btn-secondary">
+      ⚡ View All Releases on GitHub
     </a>
 
     <div class="meta-row">

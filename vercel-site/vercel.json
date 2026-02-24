@@ -1,37 +1,4 @@
 {
   "version": 2,
-  "name": "iphone-photo-transfer",
-  "headers": [
-    {
-      "source": "/setup.exe",
-      "headers": [
-        { "key": "Content-Type", "value": "application/octet-stream" },
-        { "key": "Content-Disposition", "value": "attachment; filename=iPhoneTransfer-Setup.exe" }
-      ]
-    },
-    {
-      "source": "/iPhoneTransfer.application",
-      "headers": [
-        { "key": "Content-Type", "value": "application/x-ms-application" }
-      ]
-    },
-    {
-      "source": "/Application Files/(.*)\\.application",
-      "headers": [
-        { "key": "Content-Type", "value": "application/x-ms-application" }
-      ]
-    },
-    {
-      "source": "/Application Files/(.*)\\.manifest",
-      "headers": [
-        { "key": "Content-Type", "value": "application/x-ms-manifest" }
-      ]
-    },
-    {
-      "source": "/Application Files/(.*)\\.deploy",
-      "headers": [
-        { "key": "Content-Type", "value": "application/octet-stream" }
-      ]
-    }
-  ]
+  "name": "iphone-photo-transfer"
 }

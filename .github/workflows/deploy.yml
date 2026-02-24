@@ -6,6 +6,9 @@ on:
     branches: [ main ]
   workflow_dispatch:  # WHY: Allow manual trigger from GitHub UI
 
+permissions:
+  contents: write  # WHY: Needed to create GitHub Releases
+
 jobs:
   build-and-deploy:
     runs-on: windows-latest  # WHY: WPF + ClickOnce only builds on Windows
@@ -79,37 +82,58 @@ jobs:
           Write-Host "=== ClickOnce output directory ==="
           Get-ChildItem -Path clickonce-output -Recurse | Select-Object FullName, Length | Format-Table -AutoSize
 
-      # ── 6b. Copy landing page into output ──────────────────────────────────
-      # WHY: Vercel serves this as the root page (download button, instructions)
-      - name: Copy landing page assets
+      # ── 7. Create GitHub Release with setup.exe ────────────────────────
+      # WHY: Vercel blocks .exe files. GitHub Releases serves binaries reliably.
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: v${{ steps.version.outputs.version }}
+          body: |
+            ## iPhone Photo Transfer v${{ steps.version.outputs.version }}
+            
+            ### Download
+            Download **iPhoneTransfer-Setup.exe** below to install.
+            
+            ### Requirements
+            - Windows 10/11 (64-bit)
+            - iTunes drivers (install iTunes once, then you can uninstall it)
+          files: |
+            clickonce-output/setup.exe
+          make_latest: true
+
+      # ── 8. Prepare Vercel deployment (landing page only) ──────────────────
+      # WHY: Vercel serves the landing page; .exe download links to GitHub Releases
+      - name: Prepare Vercel site
         shell: pwsh
         run: |
-          # Copy all landing page files into ClickOnce output root
-          Copy-Item vercel-site/index.html clickonce-output/index.html -Force
-          Copy-Item vercel-site/vercel.json clickonce-output/vercel.json -Force
+          New-Item -ItemType Directory -Force -Path vercel-deploy
+          
+          # Copy landing page and config
+          Copy-Item vercel-site/index.html vercel-deploy/index.html -Force
+          Copy-Item vercel-site/vercel.json vercel-deploy/vercel.json -Force
           if (Test-Path vercel-site/public) {
-            Copy-Item vercel-site/public/* clickonce-output/ -Recurse -Force
+            Copy-Item vercel-site/public/* vercel-deploy/ -Recurse -Force
           }
 
-          # WHY: Inject the real version number into the landing page
-          $html = Get-Content clickonce-output/index.html -Raw
+          # WHY: Inject version, date, and GitHub release download URL
+          $html = Get-Content vercel-deploy/index.html -Raw
           $html = $html -replace '__VERSION__', '${{ steps.version.outputs.version }}'
           $html = $html -replace '__BUILD_DATE__', (Get-Date -Format 'MMMM d, yyyy')
-          Set-Content clickonce-output/index.html $html
+          $html = $html -replace '__SETUP_EXE_URL__', 'https://github.com/Nagarjun318/iphone-transfer/releases/latest/download/setup.exe'
+          Set-Content vercel-deploy/index.html $html
 
-      # ── 7. Deploy to Vercel ───────────────────────────────────────────────
-      # WHY: Vercel hosts the ClickOnce files and landing page
+      # ── 9. Deploy landing page to Vercel ──────────────────────────────────
       - name: Deploy to Vercel
         uses: amondnet/vercel-action@v25
         with:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
           vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
-          working-directory: clickonce-output
-          vercel-args: '--prod'   # WHY: --prod promotes to production URL
+          working-directory: vercel-deploy
+          vercel-args: '--prod'
 
-      # ── 8. Upload artifacts for debugging ────────────────────────────────
-      # WHY: Download build artifacts from GitHub Actions if deployment fails
+      # ── 10. Upload artifacts for debugging ───────────────────────────────
       - name: Upload ClickOnce artifacts
         uses: actions/upload-artifact@v4
         with:
