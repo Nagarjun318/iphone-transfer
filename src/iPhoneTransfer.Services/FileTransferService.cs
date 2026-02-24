@@ -180,12 +180,12 @@ public class FileTransferService : ITransferService
             using var afcHandle = StartAFCService(udid);
 
             // STEP 1: Open source file on iPhone
-            ulong afcFileHandle;
+            ulong afcFileHandle = 0;
             var afcError = LibiMobileDevice.Instance.Afc.afc_file_open(
                 afcHandle,
                 mediaFile.FilePath,
                 AfcFileMode.FopenRdonly,
-                out afcFileHandle
+                ref afcFileHandle
             );
 
             if (afcError != AfcError.Success)

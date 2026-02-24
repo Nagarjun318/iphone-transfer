@@ -117,8 +117,8 @@ public class DeviceManager : IDeviceService, IDisposable
             // WHY: Get list of UDIDs from usbmuxd
             // This returns ALL connected iOS devices (iPhone, iPad, iPod)
             ReadOnlyCollection<string> udids;
-            int count;
-            var ideviceError = LibiMobileDevice.Instance.iDevice.idevice_get_device_list(out udids, out count);
+            int count = 0;
+            var ideviceError = LibiMobileDevice.Instance.iDevice.idevice_get_device_list(out udids, ref count);
 
             if (ideviceError != iDeviceError.Success || count == 0)
             {
@@ -154,8 +154,8 @@ public class DeviceManager : IDeviceService, IDisposable
     /// </summary>
     private DeviceInfo? GetDeviceInfo(string udid)
     {
-        iDeviceHandle deviceHandle = null;
-        LockdownClientHandle lockdownHandle = null;
+        iDeviceHandle? deviceHandle = null;
+        LockdownClientHandle? lockdownHandle = null;
 
         try
         {
@@ -375,8 +375,8 @@ public class DeviceManager : IDeviceService, IDisposable
     {
         return await Task.Run(() =>
         {
-            iDeviceHandle deviceHandle = null;
-            LockdownClientHandle lockdownHandle = null;
+            iDeviceHandle? deviceHandle = null;
+            LockdownClientHandle? lockdownHandle = null;
 
             try
             {
@@ -403,8 +403,8 @@ public class DeviceManager : IDeviceService, IDisposable
                 // STEP 3: Request pairing
                 // WHY: This triggers "Trust This Computer?" dialog on iPhone
                 // User has up to 30 seconds to respond
-                PlistHandle pairingOptions = null; // Use default pairing options
-                lockdownError = LibiMobileDevice.Instance.Lockdown.lockdownd_pair(lockdownHandle, pairingOptions);
+                // WHY null: passing null uses the default pairing record stored on disk
+                lockdownError = LibiMobileDevice.Instance.Lockdown.lockdownd_pair(lockdownHandle, (LockdownPairRecordHandle?)null);
 
                 if (lockdownError == LockdownError.Success)
                 {
@@ -451,8 +451,8 @@ public class DeviceManager : IDeviceService, IDisposable
     {
         return await Task.Run(() =>
         {
-            iDeviceHandle deviceHandle = null;
-            LockdownClientHandle lockdownHandle = null;
+            iDeviceHandle? deviceHandle = null;
+            LockdownClientHandle? lockdownHandle = null;
 
             try
             {

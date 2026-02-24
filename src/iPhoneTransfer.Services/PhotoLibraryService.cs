@@ -312,12 +312,12 @@ public class PhotoLibraryService : IPhotoService
                 // WHY: We use Option 2 (simpler, works for HEIC without EXIF reader)
 
                 // WHY: Open file in read mode
-                ulong fileHandle;
+                ulong fileHandle = 0;
                 var afcError = LibiMobileDevice.Instance.Afc.afc_file_open(
                     afcHandle,
                     mediaFile.FilePath,
                     AfcFileMode.FopenRdonly,
-                    out fileHandle
+                    ref fileHandle
                 );
 
                 if (afcError != AfcError.Success)
