@@ -108,55 +108,78 @@ public partial class MainViewModel : ObservableObject
 
     private async Task HandleDeviceConnection(DeviceInfo device)
     {
-        try
-        {
-            ConnectedDevice = device;
+        // WHY: Retry up to 3 times with increasing delay - USB connection may need time to stabilize
+        const int maxRetries = 3;
 
-            // WHY: Check if device is paired
-            if (!device.IsPaired)
+        for (int attempt = 1; attempt <= maxRetries; attempt++)
+        {
+            try
             {
-                StatusMessage = "Please tap 'Trust' on your iPhone...";
-                
-                // WHY: Initiate pairing
-                var paired = await _deviceManager.PairDeviceAsync(device.UDID);
-                if (!paired)
+                ConnectedDevice = device;
+
+                // WHY: Check if device is paired
+                if (!device.IsPaired)
                 {
-                    StatusMessage = "Pairing failed. Please try again.";
+                    StatusMessage = "Please tap 'Trust' on your iPhone...";
+                    
+                    var paired = await _deviceManager.PairDeviceAsync(device.UDID);
+                    if (!paired)
+                    {
+                        StatusMessage = "Pairing failed. Please try again.";
+                        return;
+                    }
+
+                    device.IsPaired = true;
+                }
+
+                // WHY: Check if device is locked
+                if (device.IsLocked)
+                {
+                    StatusMessage = "Please unlock your iPhone to continue.";
+                    IsDeviceConnected = false;
                     return;
                 }
 
-                device.IsPaired = true;
-            }
+                IsDeviceConnected = true;
+                StatusMessage = $"Connected to {device.DisplayName}";
 
-            // WHY: Check if device is locked
-            if (device.IsLocked)
+                // WHY: Auto-start photo scan on successful connection
+                await ScanPhotosAsync();
+                return; // Success — exit retry loop
+            }
+            catch (iPhoneException ex)
             {
-                StatusMessage = "Please unlock your iPhone to continue.";
+                if (attempt < maxRetries)
+                {
+                    StatusMessage = $"Connecting... (attempt {attempt + 1}/{maxRetries})";
+                    await Task.Delay(2000 * attempt); // WHY: Increasing delay gives USB more time
+                    continue;
+                }
+                StatusMessage = ex.GetUserFriendlyMessage();
                 IsDeviceConnected = false;
-                return;
             }
-
-            IsDeviceConnected = true;
-            StatusMessage = $"Connected to {device.DisplayName}";
-
-            // WHY: Auto-start photo scan on successful connection
-            await ScanPhotosAsync();
-        }
-        catch (iPhoneException ex)
-        {
-            StatusMessage = ex.GetUserFriendlyMessage();
-            IsDeviceConnected = false;
-        }
-        catch (ArgumentNullException ex) when (ex.ParamName == "pHandle" || ex.Message.Contains("SafeHandle"))
-        {
-            // WHY: SafeHandle null errors mean the USB connection is unstable
-            StatusMessage = "USB connection error. Please disconnect your iPhone, wait 5 seconds, and reconnect.";
-            IsDeviceConnected = false;
-        }
-        catch (Exception ex)
-        {
-            StatusMessage = $"Error: {ex.Message}";
-            IsDeviceConnected = false;
+            catch (ArgumentNullException ex) when (ex.ParamName == "pHandle" || ex.Message.Contains("SafeHandle"))
+            {
+                if (attempt < maxRetries)
+                {
+                    StatusMessage = $"Initializing USB connection... (attempt {attempt + 1}/{maxRetries})";
+                    await Task.Delay(2000 * attempt);
+                    continue;
+                }
+                StatusMessage = "USB connection error. Please disconnect your iPhone, wait 5 seconds, and reconnect.";
+                IsDeviceConnected = false;
+            }
+            catch (Exception ex)
+            {
+                if (attempt < maxRetries)
+                {
+                    StatusMessage = $"Connecting... (attempt {attempt + 1}/{maxRetries})";
+                    await Task.Delay(2000 * attempt);
+                    continue;
+                }
+                StatusMessage = $"Error: {ex.Message}";
+                IsDeviceConnected = false;
+            }
         }
     }
 

@@ -17,8 +17,13 @@ namespace iPhoneTransfer.Services;
 public class DeviceManager : IDeviceService, IDisposable
 {
     private readonly Dictionary<string, LockdownClientHandle> _activeLockdownClients = new();
+    private readonly Dictionary<string, iDeviceHandle> _activeDeviceHandles = new();
     private System.Timers.Timer? _deviceWatcher;
     private readonly HashSet<string> _knownDevices = new();
+
+    // WHY: Retry constants for transient USB initialization failures
+    private const int MAX_RETRIES = 3;
+    private const int RETRY_DELAY_MS = 1000;
 
     public event EventHandler<DeviceInfo>? DeviceConnected;
     public event EventHandler<string>? DeviceDisconnected;
@@ -92,8 +97,13 @@ public class DeviceManager : IDeviceService, IDisposable
                 // WHY: Clean up Lockdown client for disconnected device (prevent memory leak)
                 if (_activeLockdownClients.TryGetValue(udid, out var client))
                 {
-                    client.Dispose();
+                    try { client.Dispose(); } catch { }
                     _activeLockdownClients.Remove(udid);
+                }
+                if (_activeDeviceHandles.TryGetValue(udid, out var devHandle))
+                {
+                    try { devHandle.Dispose(); } catch { }
+                    _activeDeviceHandles.Remove(udid);
                 }
             }
         }
@@ -154,68 +164,104 @@ public class DeviceManager : IDeviceService, IDisposable
     /// </summary>
     private DeviceInfo? GetDeviceInfo(string udid)
     {
-        iDeviceHandle? deviceHandle = null;
-        LockdownClientHandle? lockdownHandle = null;
-
-        try
+        // WHY: Retry because USB/usbmuxd may not be fully ready on first attempt
+        for (int attempt = 1; attempt <= MAX_RETRIES; attempt++)
         {
-            // STEP 1: Open connection to device via usbmuxd
-            // WHY: Creates TCP tunnel over USB to this specific device
-            var ideviceError = LibiMobileDevice.Instance.iDevice.idevice_new(out deviceHandle, udid);
-            if (ideviceError != iDeviceError.Success || deviceHandle == null || deviceHandle.IsInvalid)
+            iDeviceHandle? deviceHandle = null;
+            LockdownClientHandle? lockdownHandle = null;
+
+            try
             {
+                // STEP 1: Open connection to device via usbmuxd
+                var ideviceError = LibiMobileDevice.Instance.iDevice.idevice_new(out deviceHandle, udid);
+                if (ideviceError != iDeviceError.Success || deviceHandle == null || deviceHandle.IsInvalid)
+                {
+                    if (attempt < MAX_RETRIES)
+                    {
+                        Thread.Sleep(RETRY_DELAY_MS);
+                        continue;
+                    }
+                    return null;
+                }
+
+                // STEP 2: Start Lockdown client (device security/pairing manager)
+                var lockdownError = LibiMobileDevice.Instance.Lockdown.lockdownd_client_new_with_handshake(
+                    deviceHandle, 
+                    out lockdownHandle, 
+                    "iPhoneTransfer"
+                );
+
+                if (lockdownError != LockdownError.Success || lockdownHandle == null || lockdownHandle.IsInvalid)
+                {
+                    if (attempt < MAX_RETRIES)
+                    {
+                        lockdownHandle?.Dispose();
+                        deviceHandle?.Dispose();
+                        Thread.Sleep(RETRY_DELAY_MS);
+                        continue;
+                    }
+                    return null;
+                }
+
+                // STEP 3: Query device properties
+                var deviceInfo = new DeviceInfo
+                {
+                    UDID = udid,
+                    DeviceName = GetLockdownValue(lockdownHandle, "DeviceName") ?? "Unknown iPhone",
+                    ProductType = GetLockdownValue(lockdownHandle, "ProductType") ?? "Unknown",
+                    ProductVersion = GetLockdownValue(lockdownHandle, "ProductVersion") ?? "Unknown",
+                    IsLocked = GetLockdownValue(lockdownHandle, "PasswordProtected") == "true",
+                    IsPaired = CheckPairingStatus(lockdownHandle),
+                    ConnectionType = DetermineConnectionType(lockdownHandle),
+                    BatteryLevel = int.TryParse(GetLockdownValue(lockdownHandle, "BatteryCurrentCapacity"), out var bat) ? bat : 0,
+                    IsCharging = GetLockdownValue(lockdownHandle, "BatteryIsCharging") == "true"
+                };
+
+                // WHY: Cache BOTH device handle and lockdown client
+                // The lockdown client needs the device connection to stay alive
+                CleanupDeviceHandles(udid);
+                _activeDeviceHandles[udid] = deviceHandle;
+                _activeLockdownClients[udid] = lockdownHandle;
+                deviceHandle = null;    // Prevent disposal in finally
+                lockdownHandle = null;  // Prevent disposal in finally
+
+                return deviceInfo;
+            }
+            catch
+            {
+                if (attempt < MAX_RETRIES)
+                {
+                    lockdownHandle?.Dispose();
+                    deviceHandle?.Dispose();
+                    Thread.Sleep(RETRY_DELAY_MS);
+                    continue;
+                }
                 return null;
             }
-
-            // STEP 2: Start Lockdown client (device security/pairing manager)
-            // WHY: All device info and service access goes through Lockdown
-            var lockdownError = LibiMobileDevice.Instance.Lockdown.lockdownd_client_new_with_handshake(
-                deviceHandle, 
-                out lockdownHandle, 
-                "iPhoneTransfer"  // WHY: Client name shown in iPhone's "Computers" list
-            );
-
-            if (lockdownError != LockdownError.Success || lockdownHandle == null || lockdownHandle.IsInvalid)
+            finally
             {
-                return null;
+                lockdownHandle?.Dispose();
+                deviceHandle?.Dispose();
             }
-
-            // STEP 3: Query device properties
-            // WHY: Get human-readable info for UI display
-            var deviceInfo = new DeviceInfo
-            {
-                UDID = udid,
-                DeviceName = GetLockdownValue(lockdownHandle, "DeviceName") ?? "Unknown iPhone",
-                ProductType = GetLockdownValue(lockdownHandle, "ProductType") ?? "Unknown",
-                ProductVersion = GetLockdownValue(lockdownHandle, "ProductVersion") ?? "Unknown",
-                
-                // WHY: PasswordProtected=true means locked, false means unlocked
-                IsLocked = GetLockdownValue(lockdownHandle, "PasswordProtected") == "true",
-                
-                // WHY: Check if pairing record exists in C:\ProgramData\Apple\Lockdown\{udid}.plist
-                IsPaired = CheckPairingStatus(lockdownHandle),
-                
-                // WHY: Parse connection type from DeviceClass and ConnectionType properties
-                ConnectionType = DetermineConnectionType(lockdownHandle),
-                
-                // WHY: BatteryCurrentCapacity is 0-100
-                BatteryLevel = int.Parse(GetLockdownValue(lockdownHandle, "BatteryCurrentCapacity") ?? "0"),
-                
-                // WHY: BatteryIsCharging is boolean
-                IsCharging = GetLockdownValue(lockdownHandle, "BatteryIsCharging") == "true"
-            };
-
-            // WHY: Cache Lockdown client for future operations (avoid reconnecting)
-            _activeLockdownClients[udid] = lockdownHandle;
-            lockdownHandle = null; // Prevent disposal in finally block
-
-            return deviceInfo;
         }
-        finally
+
+        return null;
+    }
+
+    /// <summary>
+    /// Safely clean up cached handles for a device before replacing them.
+    /// </summary>
+    private void CleanupDeviceHandles(string udid)
+    {
+        if (_activeLockdownClients.TryGetValue(udid, out var oldLockdown))
         {
-            // WHY: Always clean up handles to prevent resource leaks
-            lockdownHandle?.Dispose();
-            deviceHandle?.Dispose();
+            try { oldLockdown?.Dispose(); } catch { }
+            _activeLockdownClients.Remove(udid);
+        }
+        if (_activeDeviceHandles.TryGetValue(udid, out var oldDevice))
+        {
+            try { oldDevice?.Dispose(); } catch { }
+            _activeDeviceHandles.Remove(udid);
         }
     }
 
@@ -512,45 +558,77 @@ public class DeviceManager : IDeviceService, IDisposable
             }
             else
             {
-                // WHY: Handle became invalid, remove from cache and dispose safely
-                _activeLockdownClients.Remove(udid);
-                try { existingClient?.Dispose(); } catch { }
+                // WHY: Handle became invalid, clean up both handles
+                CleanupDeviceHandles(udid);
             }
         }
 
-        // WHY: Create new Lockdown client
-        iDeviceHandle? deviceHandle = null;
-        try
+        // WHY: Retry because USB connection may need time to stabilize
+        for (int attempt = 1; attempt <= MAX_RETRIES; attempt++)
         {
-            var ideviceError = LibiMobileDevice.Instance.iDevice.idevice_new(out deviceHandle, udid);
-            if (ideviceError != iDeviceError.Success || deviceHandle == null || deviceHandle.IsInvalid)
+            iDeviceHandle? deviceHandle = null;
+            LockdownClientHandle? lockdownHandle = null;
+
+            try
             {
-                throw new iPhoneException("Device not found. Please reconnect your iPhone.", iPhoneErrorType.DeviceNotFound) { DeviceUDID = udid };
+                var ideviceError = LibiMobileDevice.Instance.iDevice.idevice_new(out deviceHandle, udid);
+                if (ideviceError != iDeviceError.Success || deviceHandle == null || deviceHandle.IsInvalid)
+                {
+                    if (attempt < MAX_RETRIES)
+                    {
+                        Thread.Sleep(RETRY_DELAY_MS);
+                        continue;
+                    }
+                    throw new iPhoneException("Device not found. Please reconnect your iPhone.", iPhoneErrorType.DeviceNotFound) { DeviceUDID = udid };
+                }
+
+                var lockdownError = LibiMobileDevice.Instance.Lockdown.lockdownd_client_new_with_handshake(
+                    deviceHandle,
+                    out lockdownHandle,
+                    "iPhoneTransfer"
+                );
+
+                if (lockdownError != LockdownError.Success || lockdownHandle == null || lockdownHandle.IsInvalid)
+                {
+                    if (attempt < MAX_RETRIES)
+                    {
+                        lockdownHandle?.Dispose();
+                        deviceHandle?.Dispose();
+                        Thread.Sleep(RETRY_DELAY_MS);
+                        continue;
+                    }
+                    throw new iPhoneException(
+                        $"Failed to create Lockdown client: {lockdownError}. Please unlock your iPhone and tap Trust if prompted.",
+                        lockdownError == LockdownError.InvalidHostId ? iPhoneErrorType.InvalidPairingRecord : iPhoneErrorType.ServiceUnavailable
+                    ) { DeviceUDID = udid };
+                }
+
+                // WHY: Cache BOTH handles - lockdown client needs the device connection alive
+                _activeDeviceHandles[udid] = deviceHandle;
+                _activeLockdownClients[udid] = lockdownHandle;
+                deviceHandle = null;    // Prevent disposal in finally
+                lockdownHandle = null;  // Prevent disposal in finally
+
+                return _activeLockdownClients[udid];
             }
-
-            LockdownClientHandle? lockdownHandle;
-            var lockdownError = LibiMobileDevice.Instance.Lockdown.lockdownd_client_new_with_handshake(
-                deviceHandle,
-                out lockdownHandle,
-                "iPhoneTransfer"
-            );
-
-            if (lockdownError != LockdownError.Success || lockdownHandle == null || lockdownHandle.IsInvalid)
+            catch (iPhoneException)
             {
-                throw new iPhoneException(
-                    $"Failed to create Lockdown client: {lockdownError}. Please unlock your iPhone and tap Trust if prompted.",
-                    lockdownError == LockdownError.InvalidHostId ? iPhoneErrorType.InvalidPairingRecord : iPhoneErrorType.ServiceUnavailable
-                ) { DeviceUDID = udid };
+                throw;
             }
+            catch
+            {
+                if (attempt >= MAX_RETRIES)
+                    throw;
+                Thread.Sleep(RETRY_DELAY_MS);
+            }
+            finally
+            {
+                lockdownHandle?.Dispose();
+                deviceHandle?.Dispose();
+            }
+        }
 
-            _activeLockdownClients[udid] = lockdownHandle;
-            return lockdownHandle;
-        }
-        finally
-        {
-            // WHY: Always dispose the device handle - Lockdown client manages its own connection
-            deviceHandle?.Dispose();
-        }
+        throw new iPhoneException("Failed to connect after multiple attempts. Please reconnect your iPhone.", iPhoneErrorType.DeviceNotFound) { DeviceUDID = udid };
     }
 
     public void Dispose()
@@ -562,8 +640,15 @@ public class DeviceManager : IDeviceService, IDisposable
         // WHY: Clean up all active Lockdown connections
         foreach (var client in _activeLockdownClients.Values)
         {
-            client?.Dispose();
+            try { client?.Dispose(); } catch { }
         }
         _activeLockdownClients.Clear();
+
+        // WHY: Clean up all active device handles
+        foreach (var handle in _activeDeviceHandles.Values)
+        {
+            try { handle?.Dispose(); } catch { }
+        }
+        _activeDeviceHandles.Clear();
     }
 }
