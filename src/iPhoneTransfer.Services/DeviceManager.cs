@@ -1,3 +1,5 @@
+using System.Collections.ObjectModel;
+using System.Xml.Linq;
 using iMobileDevice;
 using iMobileDevice.iDevice;
 using iMobileDevice.Lockdown;
@@ -32,7 +34,7 @@ public class DeviceManager : IDeviceService, IDisposable
         // from the NuGet package's runtimes folder. Must be called once before any API use.
         try
         {
-            NativeLibraries.RegisterLibraries();
+            NativeLibraries.Load();
         }
         catch (Exception ex)
         {
@@ -242,8 +244,36 @@ public class DeviceManager : IDeviceService, IDisposable
 
             using (plistHandle)
             {
-                // WHY: Convert plist to string (handles strings, numbers, booleans)
-                return LibiMobileDevice.Instance.Plist.PlistNodeToString(plistHandle);
+                // WHY: plist_get_string_val reads string-type nodes.
+                // For bool/int nodes we serialize to XML and parse the value out.
+                try
+                {
+                    string? strVal;
+                    LibiMobileDevice.Instance.Plist.plist_get_string_val(plistHandle, out strVal);
+                    if (strVal != null) return strVal;
+                }
+                catch { }
+
+                // Fallback: serialize to XML and extract inner text
+                try
+                {
+                    uint xmlLen = 0;
+                    string? xmlStr;
+                    LibiMobileDevice.Instance.Plist.plist_to_xml(plistHandle, out xmlStr, ref xmlLen);
+                    if (xmlStr != null)
+                    {
+                        // Extract value between first pair of XML tags, e.g. <true/> -> "true", <integer>100</integer> -> "100"
+                        var doc = System.Xml.Linq.XDocument.Parse(xmlStr);
+                        var val = doc.Root?.Value;
+                        // Handle <true/> and <false/> which have no text content
+                        if (string.IsNullOrEmpty(val))
+                            val = doc.Root?.Name.LocalName; // "true" or "false"
+                        return val;
+                    }
+                }
+                catch { }
+
+                return null;
             }
         }
         catch
@@ -260,21 +290,15 @@ public class DeviceManager : IDeviceService, IDisposable
     {
         try
         {
-            PlistHandle pairRecordHandle;
-            
-            // WHY: Lockdown returns cached pairing record if it exists
-            var error = LibiMobileDevice.Instance.Lockdown.lockdownd_get_pair_record(
+            // WHY: lockdownd_get_pair_record does not exist in this library version.
+            // Use validate_pair with a null record to check if a pairing exists.
+            // Success means a valid pairing record is on file.
+            var error = LibiMobileDevice.Instance.Lockdown.lockdownd_validate_pair(
                 lockdownHandle,
-                out pairRecordHandle
+                null
             );
 
-            if (error == LockdownError.Success && !pairRecordHandle.IsInvalid)
-            {
-                pairRecordHandle.Dispose();
-                return true;
-            }
-
-            return false;
+            return error == LockdownError.Success;
         }
         catch
         {
@@ -514,7 +538,7 @@ public class DeviceManager : IDeviceService, IDisposable
         {
             throw new iPhoneException(
                 $"Failed to create Lockdown client: {lockdownError}",
-                lockdownError == LockdownError.InvalidHostID ? iPhoneErrorType.InvalidPairingRecord : iPhoneErrorType.ServiceUnavailable
+                lockdownError == LockdownError.InvalidHostId ? iPhoneErrorType.InvalidPairingRecord : iPhoneErrorType.ServiceUnavailable
             ) { DeviceUDID = udid };
         }
 

@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using iMobileDevice;
 using iMobileDevice.Afc;
 using iMobileDevice.iDevice;
@@ -183,7 +184,7 @@ public class FileTransferService : ITransferService
             var afcError = LibiMobileDevice.Instance.Afc.afc_file_open(
                 afcHandle,
                 mediaFile.FilePath,
-                AfcFileMode.ReadOnly,
+                AfcFileMode.FopenRdonly,
                 out afcFileHandle
             );
 
@@ -205,7 +206,7 @@ public class FileTransferService : ITransferService
                         afcHandle,
                         afcFileHandle,
                         0,
-                        AfcSeekOrigin.SeekEnd  // WHY: Seek to end to get size
+                        2  // SEEK_END: seek to end to get file size
                     );
                     
                     if (afcError == AfcError.Success)
@@ -223,7 +224,7 @@ public class FileTransferService : ITransferService
                             afcHandle,
                             afcFileHandle,
                             0,
-                            AfcSeekOrigin.SeekSet
+                            0  // SEEK_SET: seek to beginning
                         );
                     }
                 }

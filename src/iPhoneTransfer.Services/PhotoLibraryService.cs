@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using iMobileDevice;
 using iMobileDevice.Afc;
 using iMobileDevice.iDevice;
@@ -315,7 +316,7 @@ public class PhotoLibraryService : IPhotoService
                 var afcError = LibiMobileDevice.Instance.Afc.afc_file_open(
                     afcHandle,
                     mediaFile.FilePath,
-                    AfcFileMode.ReadOnly,
+                    AfcFileMode.FopenRdonly,
                     out fileHandle
                 );
 
