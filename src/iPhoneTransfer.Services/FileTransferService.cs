@@ -399,29 +399,37 @@ public class FileTransferService : ITransferService
     /// </summary>
     private AfcClientHandle StartAFCService(string udid)
     {
+        iDeviceHandle? deviceHandle = null;
+        LockdownServiceDescriptorHandle? serviceDescriptor = null;
+
         try
         {
             var lockdownClient = _deviceManager.GetLockdownClient(udid);
 
-            LockdownServiceDescriptorHandle serviceDescriptor;
             var lockdownError = LibiMobileDevice.Instance.Lockdown.lockdownd_start_service(
                 lockdownClient,
                 "com.apple.afc",
                 out serviceDescriptor
             );
 
-            if (lockdownError != LockdownError.Success)
+            if (lockdownError != LockdownError.Success || serviceDescriptor == null || serviceDescriptor.IsInvalid)
             {
                 throw new iPhoneException(
-                    $"Failed to start AFC service: {lockdownError}",
+                    $"Failed to start AFC service: {lockdownError}. Please unlock your iPhone and ensure it is trusted.",
                     lockdownError == LockdownError.PasswordProtected 
                         ? iPhoneErrorType.DeviceLocked 
                         : iPhoneErrorType.ServiceUnavailable
                 ) { DeviceUDID = udid };
             }
 
-            iDeviceHandle deviceHandle;
-            LibiMobileDevice.Instance.iDevice.idevice_new(out deviceHandle, udid);
+            var ideviceError = LibiMobileDevice.Instance.iDevice.idevice_new(out deviceHandle, udid);
+            if (ideviceError != iDeviceError.Success || deviceHandle == null || deviceHandle.IsInvalid)
+            {
+                throw new iPhoneException(
+                    "Failed to reconnect to device for AFC. Please reconnect your iPhone.",
+                    iPhoneErrorType.DeviceNotFound
+                ) { DeviceUDID = udid };
+            }
 
             AfcClientHandle afcHandle;
             var afcError = LibiMobileDevice.Instance.Afc.afc_client_new(
@@ -430,10 +438,7 @@ public class FileTransferService : ITransferService
                 out afcHandle
             );
 
-            serviceDescriptor.Dispose();
-            deviceHandle.Dispose();
-
-            if (afcError != AfcError.Success)
+            if (afcError != AfcError.Success || afcHandle == null || afcHandle.IsInvalid)
             {
                 throw new iPhoneException(
                     $"Failed to create AFC client: {afcError}",
@@ -450,10 +455,16 @@ public class FileTransferService : ITransferService
         catch (Exception ex)
         {
             throw new iPhoneException(
-                "Failed to access iPhone filesystem",
+                "Failed to access iPhone filesystem. Please disconnect and reconnect your iPhone.",
                 ex,
                 iPhoneErrorType.ServiceUnavailable
             ) { DeviceUDID = udid };
+        }
+        finally
+        {
+            // WHY: Always clean up intermediate handles
+            try { serviceDescriptor?.Dispose(); } catch { }
+            try { deviceHandle?.Dispose(); } catch { }
         }
     }
 }

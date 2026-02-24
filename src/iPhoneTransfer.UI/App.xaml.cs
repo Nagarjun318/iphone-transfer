@@ -21,6 +21,39 @@ public partial class App : Application
     {
         base.OnStartup(e);
 
+        // WHY: Catch unhandled exceptions to prevent silent crashes and log errors
+        AppDomain.CurrentDomain.UnhandledException += (sender, args) =>
+        {
+            var ex = (Exception)args.ExceptionObject;
+            var logPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "error.log");
+            System.IO.File.AppendAllText(logPath, $"[{DateTime.Now}] UNHANDLED: {ex}\n\n");
+            MessageBox.Show(
+                $"An unexpected error occurred:\n\n{ex.Message}\n\nDetails have been saved to error.log",
+                "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        };
+
+        DispatcherUnhandledException += (sender, args) =>
+        {
+            var logPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "error.log");
+            System.IO.File.AppendAllText(logPath, $"[{DateTime.Now}] UI ERROR: {args.Exception}\n\n");
+
+            // WHY: Show user-friendly message for known iPhone errors
+            var message = args.Exception is iPhoneTransfer.Core.Exceptions.iPhoneException iphoneEx
+                ? iphoneEx.GetUserFriendlyMessage()
+                : $"An error occurred: {args.Exception.Message}";
+
+            MessageBox.Show(message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            args.Handled = true; // WHY: Prevent app crash, allow user to continue
+        };
+
+        // WHY: Catch unobserved Task exceptions (background threads)
+        TaskScheduler.UnobservedTaskException += (sender, args) =>
+        {
+            var logPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "error.log");
+            System.IO.File.AppendAllText(logPath, $"[{DateTime.Now}] TASK ERROR: {args.Exception}\n\n");
+            args.SetObserved(); // WHY: Prevent app crash from background task failures
+        };
+
         try
         {
             // WHY: Initialize DeviceManager early to detect iTunes installation issues

@@ -147,6 +147,12 @@ public partial class MainViewModel : ObservableObject
             StatusMessage = ex.GetUserFriendlyMessage();
             IsDeviceConnected = false;
         }
+        catch (ArgumentNullException ex) when (ex.ParamName == "pHandle" || ex.Message.Contains("SafeHandle"))
+        {
+            // WHY: SafeHandle null errors mean the USB connection is unstable
+            StatusMessage = "USB connection error. Please disconnect your iPhone, wait 5 seconds, and reconnect.";
+            IsDeviceConnected = false;
+        }
         catch (Exception ex)
         {
             StatusMessage = $"Error: {ex.Message}";
@@ -200,6 +206,19 @@ public partial class MainViewModel : ObservableObject
         catch (OperationCanceledException)
         {
             StatusMessage = "Scan cancelled";
+        }
+        catch (ArgumentNullException ex) when (ex.ParamName == "pHandle" || ex.Message.Contains("SafeHandle"))
+        {
+            StatusMessage = "USB connection lost. Please disconnect, wait 5 seconds, and reconnect your iPhone.";
+            System.Windows.MessageBox.Show(
+                "The USB connection to your iPhone was interrupted.\n\n" +
+                "Please try these steps:\n" +
+                "1. Disconnect the USB cable\n" +
+                "2. Wait 5 seconds\n" +
+                "3. Reconnect the cable\n" +
+                "4. Unlock your iPhone\n" +
+                "5. Tap 'Trust' if prompted",
+                "Connection Error", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
         catch (iPhoneException ex)
         {
@@ -344,6 +363,18 @@ public partial class MainViewModel : ObservableObject
         catch (OperationCanceledException)
         {
             StatusMessage = "Transfer cancelled";
+        }
+        catch (ArgumentNullException ex) when (ex.ParamName == "pHandle" || ex.Message.Contains("SafeHandle"))
+        {
+            System.Windows.MessageBox.Show(
+                "The USB connection to your iPhone was interrupted during transfer.\n\n" +
+                "Please try these steps:\n" +
+                "1. Disconnect the USB cable\n" +
+                "2. Wait 5 seconds\n" +
+                "3. Reconnect the cable\n" +
+                "4. Unlock your iPhone\n" +
+                "5. Try the transfer again",
+                "Connection Error", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
         catch (iPhoneException ex)
         {
