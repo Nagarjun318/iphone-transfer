@@ -26,7 +26,7 @@ jobs:
 
       # ── 3. Restore NuGet packages ─────────────────────────────────────────
       - name: Restore dependencies
-        run: dotnet restore src/iPhoneTransfer.UI/iPhoneTransfer.UI.csproj
+        run: dotnet restore src/iPhoneTransfer.UI/iPhoneTransfer.UI.csproj -r win-x64
 
       # ── 5. Extract version from tag or use default ────────────────────────
       # WHY: Lets you version releases by pushing a git tag like v1.2.3
@@ -59,7 +59,6 @@ jobs:
             -p:IncludeNativeLibrariesForSelfExtract=true `
             -p:IncludeAllContentForSelfExtract=true `
             -p:Version=${{ steps.version.outputs.version }} `
-            -p:Platform=x64 `
             -o publish-output
 
       # ── 6a. Create installer zip ─────────────────────────────────────────

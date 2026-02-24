@@ -13,40 +13,9 @@
     <AssemblyName>iPhoneTransfer</AssemblyName>
     <RootNamespace>iPhoneTransfer.UI</RootNamespace>
 
-    <!-- ClickOnce Settings -->
-    <!-- WHY: PublishUrl = where Vercel serves the ClickOnce files -->
-    <PublishUrl>publish\</PublishUrl>
-    <InstallUrl>https://iphone-photo-transfer.vercel.app/</InstallUrl>
-    <SupportUrl>https://iphone-photo-transfer.vercel.app/</SupportUrl>
+    <!-- App metadata -->
     <PublisherName>iPhoneTransfer</PublisherName>
     <ProductName>iPhone Photo Transfer</ProductName>
-
-    <!-- WHY: Install=true means it installs to user's machine (not browser-run) -->
-    <Install>true</Install>
-    <InstallFrom>Web</InstallFrom>
-
-    <!-- WHY: Auto-update checks every 7 days at launch -->
-    <UpdateEnabled>true</UpdateEnabled>
-    <UpdateMode>Foreground</UpdateMode>
-    <UpdateInterval>7</UpdateInterval>
-    <UpdateIntervalUnits>Days</UpdateIntervalUnits>
-    <UpdatePeriodically>false</UpdatePeriodically>
-    <UpdateRequired>false</UpdateRequired>
-
-    <!-- WHY: Versioning – increment ApplicationRevision for each release -->
-    <ApplicationVersion>1.0.0.*</ApplicationVersion>
-    <ApplicationRevision>0</ApplicationRevision>
-    <UseApplicationTrust>false</UseApplicationTrust>
-    <BootstrapperEnabled>true</BootstrapperEnabled>
-
-    <!-- WHY: Target x64 Windows only (32-bit not supported) -->
-    <TargetZone>LocalIntranet</TargetZone>
-    <SigningCertificateCritical>false</SigningCertificateCritical>
-    <ManifestCertificateThumbprint></ManifestCertificateThumbprint>
-    <GenerateManifests>true</GenerateManifests>
-    <IsWebBootstrapper>true</IsWebBootstrapper>
-    <CreateWebPageOnPublish>true</CreateWebPageOnPublish>
-    <WebPage>index.html</WebPage>
   </PropertyGroup>
 
   <ItemGroup>
