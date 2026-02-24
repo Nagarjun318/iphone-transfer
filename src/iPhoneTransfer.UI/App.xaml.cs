@@ -3,6 +3,10 @@ using iPhoneTransfer.Services;
 using iPhoneTransfer.UI.ViewModels;
 using iPhoneTransfer.UI.Views;
 
+// WHY: Disambiguate WPF Application from WinForms Application (both in scope due to UseWindowsForms)
+using Application = System.Windows.Application;
+using MessageBox = System.Windows.MessageBox;
+
 namespace iPhoneTransfer.UI;
 
 /// <summary>
