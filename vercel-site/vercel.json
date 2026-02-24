@@ -1,12 +1,6 @@
 {
   "version": 2,
   "name": "iphone-photo-transfer",
-  "builds": [
-    {
-      "src": "**/*",
-      "use": "@vercel/static"
-    }
-  ],
   "headers": [
     {
       "source": "/setup.exe",

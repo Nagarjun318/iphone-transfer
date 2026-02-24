@@ -72,7 +72,14 @@ jobs:
             /p:UpdateInterval=7 `
             /p:UpdateIntervalUnits=Days
 
-      # ── 6. Copy landing page into output ──────────────────────────────────
+      # ── 6a. Debug: List ClickOnce output ─────────────────────────────────
+      - name: List ClickOnce output
+        shell: pwsh
+        run: |
+          Write-Host "=== ClickOnce output directory ==="
+          Get-ChildItem -Path clickonce-output -Recurse | Select-Object FullName, Length | Format-Table -AutoSize
+
+      # ── 6b. Copy landing page into output ──────────────────────────────────
       # WHY: Vercel serves this as the root page (download button, instructions)
       - name: Copy landing page assets
         shell: pwsh
