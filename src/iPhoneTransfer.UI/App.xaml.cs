@@ -1,5 +1,4 @@
 using System.Windows;
-using WinForms = System.Windows.Forms;
 using iPhoneTransfer.Services;
 using iPhoneTransfer.UI.ViewModels;
 using iPhoneTransfer.UI.Views;
