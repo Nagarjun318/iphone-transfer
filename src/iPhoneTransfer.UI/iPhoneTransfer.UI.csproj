@@ -15,8 +15,8 @@
     <!-- ClickOnce Settings -->
     <!-- WHY: PublishUrl = where Vercel serves the ClickOnce files -->
     <PublishUrl>publish\</PublishUrl>
-    <InstallUrl>https://your-app.vercel.app/</InstallUrl>
-    <SupportUrl>https://your-app.vercel.app/</SupportUrl>
+    <InstallUrl>https://iphone-photo-transfer.vercel.app/</InstallUrl>
+    <SupportUrl>https://iphone-photo-transfer.vercel.app/</SupportUrl>
     <PublisherName>iPhoneTransfer</PublisherName>
     <ProductName>iPhone Photo Transfer</ProductName>
 
