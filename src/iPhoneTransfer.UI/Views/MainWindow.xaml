@@ -159,26 +159,29 @@
 
                                 <!-- THUMBNAIL -->
                                 <Border Grid.Row="0" Background="#FFF0F0F0">
-                                    <!-- WHY: Show thumbnail if loaded -->
-                                    <Image Source="{Binding ThumbnailData}" 
-                                          Stretch="Uniform"
-                                          Visibility="{Binding ThumbnailData, Converter={StaticResource NullToVisConverter}}"/>
+                                    <!-- WHY: Grid lets Image, placeholder, and video icon all occupy same space -->
+                                    <Grid>
+                                        <!-- WHY: Show thumbnail if loaded -->
+                                        <Image Source="{Binding ThumbnailData}" 
+                                              Stretch="Uniform"
+                                              Visibility="{Binding ThumbnailData, Converter={StaticResource NullToVisConverter}}"/>
 
-                                    <!-- WHY: Show placeholder icon if no thumbnail -->
-                                    <TextBlock Text="{Binding Extension}" 
-                                              FontSize="32" 
-                                              Foreground="Gray" 
-                                              HorizontalAlignment="Center" 
-                                              VerticalAlignment="Center"
-                                              Visibility="{Binding ThumbnailData, Converter={StaticResource NullToVisConverter}, ConverterParameter=Inverted}"/>
+                                        <!-- WHY: Show placeholder icon if no thumbnail -->
+                                        <TextBlock Text="{Binding Extension}" 
+                                                  FontSize="32" 
+                                                  Foreground="Gray" 
+                                                  HorizontalAlignment="Center" 
+                                                  VerticalAlignment="Center"
+                                                  Visibility="{Binding ThumbnailData, Converter={StaticResource NullToVisConverter}, ConverterParameter=Inverted}"/>
 
-                                    <!-- WHY: Video overlay icon -->
-                                    <TextBlock Text="▶️" 
-                                              FontSize="48" 
-                                              HorizontalAlignment="Center" 
-                                              VerticalAlignment="Center"
-                                              Opacity="0.8"
-                                              Visibility="{Binding Type, Converter={StaticResource EnumToVisConverter}, ConverterParameter=Video}"/>
+                                        <!-- WHY: Video overlay icon -->
+                                        <TextBlock Text="▶️" 
+                                                  FontSize="48" 
+                                                  HorizontalAlignment="Center" 
+                                                  VerticalAlignment="Center"
+                                                  Opacity="0.8"
+                                                  Visibility="{Binding Type, Converter={StaticResource EnumToVisConverter}, ConverterParameter=Video}"/>
+                                    </Grid>
                                 </Border>
 
                                 <!-- INFO AREA -->
