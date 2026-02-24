@@ -14,7 +14,6 @@ namespace iPhoneTransfer.Services;
 /// </summary>
 public class DeviceManager : IDeviceService, IDisposable
 {
-    private readonly NativeLibraries _nativeLibraries;
     private readonly Dictionary<string, LockdownClientHandle> _activeLockdownClients = new();
     private System.Timers.Timer? _deviceWatcher;
     private readonly HashSet<string> _knownDevices = new();
@@ -28,15 +27,18 @@ public class DeviceManager : IDeviceService, IDisposable
     /// </summary>
     public DeviceManager()
     {
-        // WHY: NativeLibraries locates and loads Apple's DLLs (usbmuxd, libimobiledevice, etc.)
-        // from standard install locations or custom paths
-        _nativeLibraries = new NativeLibraries();
-        
-        // WHY: Verify usbmuxd is accessible before user tries to connect device
-        if (!_nativeLibraries.IsLoaded)
+        // WHY: NativeLibraries is a static class in imobiledevice-net.
+        // RegisterLibraries() locates and loads Apple's DLLs (usbmuxd, libimobiledevice, etc.)
+        // from the NuGet package's runtimes folder. Must be called once before any API use.
+        try
+        {
+            NativeLibraries.RegisterLibraries();
+        }
+        catch (Exception ex)
         {
             throw new iPhoneException(
                 "Failed to load Apple Mobile Device Support libraries. Please install iTunes or Apple Devices app.",
+                ex,
                 iPhoneErrorType.UsbmuxdNotFound
             );
         }
