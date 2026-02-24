@@ -84,6 +84,20 @@ jobs:
 
       # ── 7. Create GitHub Release with setup.exe ────────────────────────
       # WHY: Vercel blocks .exe files. GitHub Releases serves binaries reliably.
+      - name: Verify setup.exe exists
+        shell: pwsh
+        run: |
+          $setupPath = "clickonce-output\setup.exe"
+          if (Test-Path $setupPath) {
+            $size = (Get-Item $setupPath).Length
+            Write-Host "✅ setup.exe found ($size bytes)"
+          } else {
+            Write-Host "❌ setup.exe NOT found at $setupPath"
+            Write-Host "Listing clickonce-output:"
+            Get-ChildItem -Path clickonce-output -Recurse | Select-Object FullName
+            exit 1
+          }
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -98,9 +112,9 @@ jobs:
             ### Requirements
             - Windows 10/11 (64-bit)
             - iTunes drivers (install iTunes once, then you can uninstall it)
-          files: |
-            clickonce-output/setup.exe
+          files: clickonce-output/setup.exe
           make_latest: true
+          fail_on_unmatched_files: true
 
       # ── 8. Prepare Vercel deployment (landing page only) ──────────────────
       # WHY: Vercel serves the landing page; .exe download links to GitHub Releases
