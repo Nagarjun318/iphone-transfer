@@ -21,47 +21,56 @@ jobs:
         with:
           dotnet-version: '6.0.x'
 
-      # ── 3. Restore NuGet packages ─────────────────────────────────────────
+      # ── 3. Add MSBuild to PATH ────────────────────────────────────────────
+      # WHY: msbuild is installed with Visual Studio on windows-latest but not
+      #      in PATH by default. This action finds and exposes it.
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      # ── 4. Restore NuGet packages ─────────────────────────────────────────
       - name: Restore dependencies
         run: dotnet restore src/iPhoneTransfer.UI/iPhoneTransfer.UI.csproj
 
-      # ── 4. Extract version from tag or use default ────────────────────────
+      # ── 5. Extract version from tag or use default ────────────────────────
       # WHY: Lets you version releases by pushing a git tag like v1.2.3
+      # WHY pwsh: windows-latest runner doesn't have bash; use PowerShell
       - name: Set version
         id: version
-        shell: bash
+        shell: pwsh
         run: |
-          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
-            VERSION="${GITHUB_REF#refs/tags/v}"
-          else
-            VERSION="1.0.0"
-          fi
-          # Convert to 4-part version for ClickOnce (1.0.0 → 1.0.0.BUILD_NUMBER)
-          BUILD_NUM=${{ github.run_number }}
-          FULL_VERSION="${VERSION}.${BUILD_NUM}"
-          echo "version=${FULL_VERSION}" >> $GITHUB_OUTPUT
-          echo "Building version: $FULL_VERSION"
+          if ($env:GITHUB_REF -match '^refs/tags/v(.+)$') {
+            $VERSION = $Matches[1]
+          } else {
+            $VERSION = "1.0.0"
+          }
+          $FULL_VERSION = "${VERSION}.${{ github.run_number }}"
+          echo "version=$FULL_VERSION" >> $env:GITHUB_OUTPUT
+          Write-Host "Building version: $FULL_VERSION"
 
-      # ── 5. Publish ClickOnce ──────────────────────────────────────────────
+      # ── 6. Publish ClickOnce ──────────────────────────────────────────────
       # WHY: msbuild /t:Publish generates the full ClickOnce deployment:
       #   - setup.exe  (bootstrapper installer)
       #   - Application Files/  (versioned app files)
       #   - iPhoneTransfer.application (ClickOnce manifest)
+      # WHY absolute PublishDir: msbuild requires trailing backslash + full path
       - name: Publish ClickOnce
+        shell: pwsh
         run: |
+          $publishDir = "${{ github.workspace }}\clickonce-output\"
+          $installUrl = "https://${{ secrets.VERCEL_PROJECT_URL }}/"
+          $appVersion = "${{ steps.version.outputs.version }}"
           msbuild src/iPhoneTransfer.UI/iPhoneTransfer.UI.csproj `
             /t:Publish `
             /p:Configuration=Release `
             /p:Platform=x64 `
-            /p:PublishDir=clickonce-output\ `
-            /p:InstallUrl=https://${{ secrets.VERCEL_PROJECT_URL }}/ `
-            /p:ApplicationVersion=${{ steps.version.outputs.version }} `
+            "/p:PublishDir=$publishDir" `
+            "/p:InstallUrl=$installUrl" `
+            "/p:ApplicationVersion=$appVersion" `
             /p:IsWebBootstrapper=true `
             /p:UpdateEnabled=true `
             /p:UpdateMode=Foreground `
             /p:UpdateInterval=7 `
             /p:UpdateIntervalUnits=Days
-        shell: pwsh
 
       # ── 6. Copy landing page into output ──────────────────────────────────
       # WHY: Vercel serves this as the root page (download button, instructions)
