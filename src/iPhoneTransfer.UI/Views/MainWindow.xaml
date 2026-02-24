@@ -111,23 +111,25 @@
 
         <!-- MAIN CONTENT: Photo/Video Grid -->
         <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
-            <!-- WHY: Show message when no files -->
-            <TextBlock Text="No photos found. Click 'Scan Photos' to load media files from your iPhone."
-                      HorizontalAlignment="Center"
-                      VerticalAlignment="Center"
-                      FontSize="16"
-                      Foreground="Gray"
-                      Margin="20">
-                <TextBlock.Visibility>
-                    <MultiBinding Converter="{StaticResource BoolToVis}">
-                        <Binding Path="MediaFiles.Count" Converter="{StaticResource IsZeroConverter}"/>
-                        <Binding Path="IsScanning" Converter="{StaticResource InverseBoolConverter}"/>
-                    </MultiBinding>
-                </TextBlock.Visibility>
-            </TextBlock>
+            <!-- WHY: Grid lets the empty-state message overlay the ItemsControl in the same space -->
+            <Grid>
+                <!-- WHY: Show message when no files scanned yet -->
+                <TextBlock Text="No photos found. Click 'Scan Photos' to load media files from your iPhone."
+                          HorizontalAlignment="Center"
+                          VerticalAlignment="Center"
+                          FontSize="16"
+                          Foreground="Gray"
+                          Margin="20">
+                    <TextBlock.Visibility>
+                        <MultiBinding Converter="{StaticResource BoolToVis}">
+                            <Binding Path="MediaFiles.Count" Converter="{StaticResource IsZeroConverter}"/>
+                            <Binding Path="IsScanning" Converter="{StaticResource InverseBoolConverter}"/>
+                        </MultiBinding>
+                    </TextBlock.Visibility>
+                </TextBlock>
 
-            <!-- WHY: ItemsControl with WrapPanel = responsive grid layout -->
-            <ItemsControl ItemsSource="{Binding MediaFiles}" Margin="10">
+                <!-- WHY: ItemsControl with WrapPanel = responsive grid layout -->
+                <ItemsControl ItemsSource="{Binding MediaFiles}" Margin="10">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
                         <!-- WHY: WrapPanel automatically flows items into rows -->
@@ -210,6 +212,7 @@
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
+            </Grid>
         </ScrollViewer>
 
         <!-- TRANSFER PROGRESS PANEL -->
