@@ -1,0 +1,102 @@
+name: Build and Deploy ClickOnce to Vercel
+
+# WHY: Triggers on every push to main → auto-deploys new version
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:  # WHY: Allow manual trigger from GitHub UI
+
+jobs:
+  build-and-deploy:
+    runs-on: windows-latest  # WHY: WPF + ClickOnce only builds on Windows
+
+    steps:
+      # ── 1. Checkout code ──────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── 2. Install .NET 6 SDK ─────────────────────────────────────────────
+      - name: Setup .NET 6
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '6.0.x'
+
+      # ── 3. Restore NuGet packages ─────────────────────────────────────────
+      - name: Restore dependencies
+        run: dotnet restore src/iPhoneTransfer.UI/iPhoneTransfer.UI.csproj
+
+      # ── 4. Extract version from tag or use default ────────────────────────
+      # WHY: Lets you version releases by pushing a git tag like v1.2.3
+      - name: Set version
+        id: version
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/v}"
+          else
+            VERSION="1.0.0"
+          fi
+          # Convert to 4-part version for ClickOnce (1.0.0 → 1.0.0.BUILD_NUMBER)
+          BUILD_NUM=${{ github.run_number }}
+          FULL_VERSION="${VERSION}.${BUILD_NUM}"
+          echo "version=${FULL_VERSION}" >> $GITHUB_OUTPUT
+          echo "Building version: $FULL_VERSION"
+
+      # ── 5. Publish ClickOnce ──────────────────────────────────────────────
+      # WHY: msbuild /t:Publish generates the full ClickOnce deployment:
+      #   - setup.exe  (bootstrapper installer)
+      #   - Application Files/  (versioned app files)
+      #   - iPhoneTransfer.application (ClickOnce manifest)
+      - name: Publish ClickOnce
+        run: |
+          msbuild src/iPhoneTransfer.UI/iPhoneTransfer.UI.csproj `
+            /t:Publish `
+            /p:Configuration=Release `
+            /p:Platform=x64 `
+            /p:PublishDir=clickonce-output\ `
+            /p:InstallUrl=https://${{ secrets.VERCEL_PROJECT_URL }}/ `
+            /p:ApplicationVersion=${{ steps.version.outputs.version }} `
+            /p:IsWebBootstrapper=true `
+            /p:UpdateEnabled=true `
+            /p:UpdateMode=Foreground `
+            /p:UpdateInterval=7 `
+            /p:UpdateIntervalUnits=Days
+        shell: pwsh
+
+      # ── 6. Copy landing page into output ──────────────────────────────────
+      # WHY: Vercel serves this as the root page (download button, instructions)
+      - name: Copy landing page assets
+        shell: pwsh
+        run: |
+          # Copy all landing page files into ClickOnce output root
+          Copy-Item vercel-site/index.html clickonce-output/index.html -Force
+          Copy-Item vercel-site/vercel.json clickonce-output/vercel.json -Force
+          if (Test-Path vercel-site/public) {
+            Copy-Item vercel-site/public/* clickonce-output/ -Recurse -Force
+          }
+
+          # WHY: Inject the real version number into the landing page
+          $html = Get-Content clickonce-output/index.html -Raw
+          $html = $html -replace '__VERSION__', '${{ steps.version.outputs.version }}'
+          $html = $html -replace '__BUILD_DATE__', (Get-Date -Format 'MMMM d, yyyy')
+          Set-Content clickonce-output/index.html $html
+
+      # ── 7. Deploy to Vercel ───────────────────────────────────────────────
+      # WHY: Vercel hosts the ClickOnce files and landing page
+      - name: Deploy to Vercel
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          working-directory: clickonce-output
+          vercel-args: '--prod'   # WHY: --prod promotes to production URL
+
+      # ── 8. Upload artifacts for debugging ────────────────────────────────
+      # WHY: Download build artifacts from GitHub Actions if deployment fails
+      - name: Upload ClickOnce artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: clickonce-${{ steps.version.outputs.version }}
+          path: clickonce-output/
+          retention-days: 30

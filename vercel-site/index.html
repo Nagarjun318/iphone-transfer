@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>iPhone Photo Transfer — Cable-Fast USB Transfers</title>
+  <meta name="description" content="Transfer photos and videos from your iPhone to Windows PC via USB cable. Original quality, no cloud, no iTunes UI." />
+
+  <!-- WHY: Favicon as data URI so no extra file needed -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📱</text></svg>" />
+
+  <style>
+    /* ── Reset & Tokens ───────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --blue:      #0071e3;
+      --blue-dark: #0051a2;
+      --blue-lite: #e8f1fb;
+      --gray-100:  #f5f5f7;
+      --gray-300:  #d2d2d7;
+      --gray-600:  #6e6e73;
+      --gray-900:  #1d1d1f;
+      --green:     #34c759;
+      --orange:    #ff9500;
+      --red:       #ff3b30;
+      --radius:    14px;
+      --shadow:    0 4px 24px rgba(0,0,0,.12);
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--gray-100);
+      color: var(--gray-900);
+      line-height: 1.6;
+    }
+
+    /* ── Nav ──────────────────────────────────────────────────────── */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(255,255,255,.85);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--gray-300);
+      padding: 0 2rem;
+      display: flex; align-items: center; justify-content: space-between;
+      height: 52px;
+    }
+    nav .brand { font-weight: 700; font-size: 1rem; display: flex; align-items: center; gap: .5rem; }
+    nav .version-badge {
+      background: var(--blue-lite); color: var(--blue);
+      font-size: .72rem; font-weight: 600; padding: 2px 8px;
+      border-radius: 20px;
+    }
+    nav a.nav-link {
+      color: var(--gray-600); text-decoration: none;
+      font-size: .9rem; transition: color .2s;
+    }
+    nav a.nav-link:hover { color: var(--blue); }
+
+    /* ── Hero ──────────────────────────────────────────────────────── */
+    .hero {
+      background: linear-gradient(160deg, #fff 0%, var(--blue-lite) 100%);
+      padding: 80px 2rem 64px;
+      text-align: center;
+    }
+    .hero-icon { font-size: 72px; line-height: 1; }
+    .hero h1 {
+      font-size: clamp(2rem, 5vw, 3.2rem);
+      font-weight: 800; letter-spacing: -.03em;
+      margin: .5rem 0;
+      background: linear-gradient(135deg, var(--blue), #5856d6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .hero p.subtitle {
+      font-size: 1.2rem; color: var(--gray-600);
+      max-width: 560px; margin: 0 auto 2rem;
+    }
+
+    /* ── Download Card ────────────────────────────────────────────── */
+    .download-card {
+      background: white; border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      max-width: 420px; margin: 0 auto 1rem;
+      padding: 2rem;
+      text-align: center;
+    }
+    .download-btn {
+      display: inline-flex; align-items: center; gap: .6rem;
+      background: var(--blue); color: white;
+      font-size: 1.05rem; font-weight: 700;
+      padding: .9rem 2.2rem; border-radius: 50px;
+      text-decoration: none; border: none; cursor: pointer;
+      transition: background .2s, transform .15s, box-shadow .2s;
+      box-shadow: 0 4px 14px rgba(0,113,227,.35);
+      width: 100%;
+      justify-content: center;
+    }
+    .download-btn:hover { background: var(--blue-dark); transform: translateY(-1px); box-shadow: 0 6px 20px rgba(0,113,227,.45); }
+    .download-btn:active { transform: translateY(0); }
+
+    .download-btn-secondary {
+      display: inline-flex; align-items: center; gap: .5rem;
+      border: 2px solid var(--blue); color: var(--blue);
+      font-size: .95rem; font-weight: 600;
+      padding: .7rem 1.8rem; border-radius: 50px;
+      text-decoration: none; margin-top: .8rem;
+      transition: all .2s; width: 100%; justify-content: center;
+    }
+    .download-btn-secondary:hover { background: var(--blue-lite); }
+
+    .meta-row {
+      display: flex; justify-content: center; gap: 1.4rem;
+      font-size: .82rem; color: var(--gray-600);
+      margin-top: 1rem; padding-top: 1rem;
+      border-top: 1px solid var(--gray-300);
+    }
+    .meta-row span { display: flex; align-items: center; gap: .3rem; }
+
+    .req-note {
+      background: #fff8e7; border: 1px solid var(--orange);
+      color: #7a4f00; border-radius: 10px;
+      font-size: .84rem; padding: .7rem 1rem;
+      margin-top: 1rem; text-align: left;
+      line-height: 1.5;
+    }
+    .req-note strong { display: block; margin-bottom: .2rem; }
+
+    /* ── Features Grid ────────────────────────────────────────────── */
+    .features { max-width: 900px; margin: 0 auto; padding: 64px 2rem; }
+    .features h2 { text-align: center; font-size: 2rem; font-weight: 800; margin-bottom: 2rem; }
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1.2rem;
+    }
+    .feature-card {
+      background: white; border-radius: var(--radius);
+      padding: 1.5rem; box-shadow: 0 2px 10px rgba(0,0,0,.07);
+    }
+    .feature-card .icon { font-size: 2rem; margin-bottom: .6rem; }
+    .feature-card h3 { font-size: 1rem; font-weight: 700; margin-bottom: .4rem; }
+    .feature-card p { font-size: .88rem; color: var(--gray-600); }
+
+    /* ── How it Works ─────────────────────────────────────────────── */
+    .steps { background: white; padding: 64px 2rem; }
+    .steps h2 { text-align: center; font-size: 2rem; font-weight: 800; margin-bottom: 3rem; }
+    .steps-list {
+      max-width: 660px; margin: 0 auto;
+      display: flex; flex-direction: column; gap: 1.6rem;
+    }
+    .step {
+      display: flex; gap: 1.2rem; align-items: flex-start;
+    }
+    .step-num {
+      flex-shrink: 0;
+      width: 36px; height: 36px; border-radius: 50%;
+      background: var(--blue); color: white;
+      font-weight: 700; font-size: .95rem;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .step-body h3 { font-size: 1rem; font-weight: 700; margin-bottom: .25rem; }
+    .step-body p { font-size: .9rem; color: var(--gray-600); }
+    .step-body code {
+      background: var(--gray-100); border-radius: 6px;
+      padding: 1px 6px; font-size: .85rem; color: var(--blue-dark);
+    }
+
+    /* ── Requirements ─────────────────────────────────────────────── */
+    .requirements { max-width: 900px; margin: 0 auto; padding: 64px 2rem; }
+    .requirements h2 { text-align: center; font-size: 2rem; font-weight: 800; margin-bottom: 2rem; }
+    .req-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+    }
+    .req-item {
+      background: white; border-radius: var(--radius);
+      padding: 1.2rem 1.4rem;
+      display: flex; gap: .8rem; align-items: flex-start;
+      box-shadow: 0 2px 10px rgba(0,0,0,.07);
+    }
+    .req-item .check { color: var(--green); font-size: 1.1rem; flex-shrink: 0; }
+    .req-item .label { font-size: .9rem; font-weight: 600; }
+    .req-item .sub { font-size: .8rem; color: var(--gray-600); }
+
+    /* ── FAQ ──────────────────────────────────────────────────────── */
+    .faq { background: white; padding: 64px 2rem; }
+    .faq h2 { text-align: center; font-size: 2rem; font-weight: 800; margin-bottom: 2.5rem; }
+    .faq-list { max-width: 700px; margin: 0 auto; display: flex; flex-direction: column; gap: .8rem; }
+    details {
+      border: 1px solid var(--gray-300); border-radius: var(--radius);
+      overflow: hidden;
+    }
+    details summary {
+      padding: 1rem 1.2rem; font-weight: 600; cursor: pointer;
+      list-style: none; display: flex; justify-content: space-between; align-items: center;
+    }
+    details summary::-webkit-details-marker { display: none; }
+    details summary::after { content: '+'; font-size: 1.3rem; color: var(--blue); }
+    details[open] summary::after { content: '−'; }
+    details[open] summary { border-bottom: 1px solid var(--gray-300); background: var(--blue-lite); }
+    details p, details ul { padding: 1rem 1.2rem; font-size: .9rem; color: var(--gray-600); line-height: 1.7; }
+    details ul { padding-left: 2.2rem; }
+    details li { margin-bottom: .4rem; }
+
+    /* ── Footer ───────────────────────────────────────────────────── */
+    footer {
+      text-align: center;
+      padding: 2rem;
+      font-size: .82rem;
+      color: var(--gray-600);
+      border-top: 1px solid var(--gray-300);
+    }
+    footer a { color: var(--blue); text-decoration: none; }
+
+    /* ── Version badge strip ──────────────────────────────────────── */
+    .release-bar {
+      background: var(--gray-900); color: #a8a8b3;
+      text-align: center; font-size: .8rem; padding: .5rem;
+    }
+    .release-bar strong { color: white; }
+  </style>
+</head>
+<body>
+
+<!-- Release bar -->
+<div class="release-bar">
+  Latest release: <strong>v__VERSION__</strong> &nbsp;·&nbsp;
+  Updated __BUILD_DATE__ &nbsp;·&nbsp;
+  Windows 10/11 (x64)
+</div>
+
+<!-- Nav -->
+<nav>
+  <div class="brand">
+    <span>📱</span>
+    <span>iPhone Photo Transfer</span>
+    <span class="version-badge">v__VERSION__</span>
+  </div>
+  <div style="display:flex;gap:1.5rem">
+    <a href="#how-it-works" class="nav-link">How It Works</a>
+    <a href="#requirements" class="nav-link">Requirements</a>
+    <a href="#faq" class="nav-link">FAQ</a>
+  </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+  <div class="hero-icon">📱 → 💻</div>
+  <h1>iPhone Photo Transfer</h1>
+  <p class="subtitle">
+    Transfer photos and videos from your iPhone to Windows via USB cable.
+    Original quality — HEIC, MOV, Live Photos. Zero cloud. Zero compression.
+  </p>
+
+  <!-- Download Card -->
+  <div class="download-card">
+    <!-- WHY setup.exe: ClickOnce bootstrapper installs .NET, then installs the app -->
+    <a href="setup.exe" class="download-btn">
+      ⬇️ &nbsp; Download Setup (Windows)
+    </a>
+
+    <!-- WHY .application: For users who already have .NET 6 installed -->
+    <a href="iPhoneTransfer.application" class="download-btn-secondary">
+      ⚡ Launch via ClickOnce (direct)
+    </a>
+
+    <div class="meta-row">
+      <span>🖥️ Windows 10/11</span>
+      <span>🔑 Personal use only</span>
+      <span>🔄 Auto-updates</span>
+    </div>
+
+    <div class="req-note">
+      <strong>⚠️ Requires iTunes (for USB drivers only)</strong>
+      Install iTunes first, then you may uninstall it — the USB drivers stay installed.
+      <a href="https://www.apple.com/itunes/download/" target="_blank" rel="noopener">Download iTunes →</a>
+    </div>
+  </div>
+</section>
+
+<!-- Features -->
+<section class="features">
+  <h2>Why use this instead of iCloud?</h2>
+  <div class="features-grid">
+    <div class="feature-card">
+      <div class="icon">⚡️</div>
+      <h3>USB-Fast Transfers</h3>
+      <p>Up to 40 MB/s on USB 2.0, 200 MB/s on USB 3.0. No Wi-Fi slowness, no cloud queues.</p>
+    </div>
+    <div class="feature-card">
+      <div class="icon">🎯</div>
+      <h3>Byte-Perfect Quality</h3>
+      <p>HEIC, HEIF, MOV, MP4 transferred as-is. No re-encoding, no compression, no conversion.</p>
+    </div>
+    <div class="feature-card">
+      <div class="icon">⚡</div>
+      <h3>Live Photos Support</h3>
+      <p>Automatically detects and transfers Live Photo pairs (.HEIC + .MOV together).</p>
+    </div>
+    <div class="feature-card">
+      <div class="icon">🔒</div>
+      <h3>100% Offline</h3>
+      <p>No Apple ID, no iCloud, no internet connection needed after installation.</p>
+    </div>
+    <div class="feature-card">
+      <div class="icon">📂</div>
+      <h3>Your Folder, Your Rules</h3>
+      <p>Choose any Windows folder. Preserves original filenames and timestamps.</p>
+    </div>
+    <div class="feature-card">
+      <div class="icon">🔄</div>
+      <h3>Auto-Updates</h3>
+      <p>ClickOnce checks for updates automatically every 7 days at launch.</p>
+    </div>
+  </div>
+</section>
+
+<!-- How It Works -->
+<section class="steps" id="how-it-works">
+  <h2>How It Works</h2>
+  <div class="steps-list">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <h3>Install iTunes (first time only)</h3>
+        <p>iTunes provides the USB drivers Apple requires for cable communication. You can uninstall iTunes afterward — the drivers (<code>usbmuxd.exe</code>) remain.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <h3>Download and run Setup</h3>
+        <p>Click "Download Setup" above. Run <code>iPhoneTransfer-Setup.exe</code>. Windows will install the app to your user profile — no admin rights needed.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <h3>Connect iPhone via USB cable</h3>
+        <p>Use the original Apple cable or a certified MFi cable. Plug into a USB-A or USB-C port directly on your laptop — avoid hubs for best speed.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-body">
+        <h3>Unlock and "Trust This Computer"</h3>
+        <p>Unlock your iPhone with your passcode. When the <em>Trust This Computer?</em> dialog appears, tap <strong>Trust</strong> and enter your passcode. This happens once per PC.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">5</div>
+      <div class="step-body">
+        <h3>Scan and select photos</h3>
+        <p>Click <strong>Scan Photos</strong>. Your camera roll appears as a grid of thumbnails. Select individual files or click <em>Select All</em>.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">6</div>
+      <div class="step-body">
+        <h3>Choose folder and transfer</h3>
+        <p>Click <strong>Browse</strong> to pick a Windows folder. Then click <strong>Transfer Selected Files</strong>. Progress shows per-file speed and estimated time remaining.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Requirements -->
+<section class="requirements" id="requirements">
+  <h2>System Requirements</h2>
+  <div class="req-grid">
+    <div class="req-item">
+      <span class="check">✅</span>
+      <div>
+        <div class="label">Windows 10 or 11</div>
+        <div class="sub">64-bit only</div>
+      </div>
+    </div>
+    <div class="req-item">
+      <span class="check">✅</span>
+      <div>
+        <div class="label">iTunes drivers</div>
+        <div class="sub">Apple Mobile Device Support</div>
+      </div>
+    </div>
+    <div class="req-item">
+      <span class="check">✅</span>
+      <div>
+        <div class="label">iPhone iOS 7.0+</div>
+        <div class="sub">Any model from iPhone 5</div>
+      </div>
+    </div>
+    <div class="req-item">
+      <span class="check">✅</span>
+      <div>
+        <div class="label">USB cable with data</div>
+        <div class="sub">Not charge-only cables</div>
+      </div>
+    </div>
+    <div class="req-item">
+      <span class="check">✅</span>
+      <div>
+        <div class="label">.NET 6 Runtime</div>
+        <div class="sub">Auto-installed by setup.exe</div>
+      </div>
+    </div>
+    <div class="req-item">
+      <span class="check">✅</span>
+      <div>
+        <div class="label">250 MB disk space</div>
+        <div class="sub">Plus destination folder space</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section class="faq" id="faq">
+  <h2>Frequently Asked Questions</h2>
+  <div class="faq-list">
+
+    <details>
+      <summary>Do I need to keep iTunes installed?</summary>
+      <p>No. iTunes is only needed for its USB drivers (Apple Mobile Device Support). After installing iTunes once, you can uninstall the iTunes app and the drivers remain. The drivers are a small background service — not the full iTunes UI.</p>
+    </details>
+
+    <details>
+      <summary>Does this work with iPad?</summary>
+      <p>Yes! iPad uses the same AFC protocol as iPhone. The app will detect your iPad automatically.</p>
+    </details>
+
+    <details>
+      <summary>Will my photos lose quality?</summary>
+      <p>Never. Files are transferred byte-for-byte — the exact same file that's on your iPhone arrives on your PC. HEIC, HEIF, MOV, MP4 — all preserved without any conversion.</p>
+    </details>
+
+    <details>
+      <summary>Why can't I see some photos?</summary>
+      <p>If you have <strong>Optimize iPhone Storage</strong> enabled in Settings → Photos, some photos are only stored in iCloud as thumbnails. Change to <strong>Download and Keep Originals</strong> first, then wait for photos to download on your iPhone (needs Wi-Fi).</p>
+    </details>
+
+    <details>
+      <summary>My iPhone shows "Trust This Computer?" every time. Why?</summary>
+      <p>This usually means the pairing record was deleted — either you reset your iPhone, or tapped "Forget This Computer" in Settings. Simply tap Trust again. You shouldn't need to do this more than once per PC per iPhone-reset.</p>
+    </details>
+
+    <details>
+      <summary>How does auto-update work?</summary>
+      <p>ClickOnce checks for a new version on this website every 7 days when you launch the app. If a newer version is found, it downloads automatically in the background and applies on the next launch. No action needed from you.</p>
+    </details>
+
+    <details>
+      <summary>Can I delete photos from iPhone with this app?</summary>
+      <p>No — by design. The app has read-only access to your camera roll (Apple's AFC service doesn't allow deleting from DCIM). Delete photos using the iPhone's own Photos app after transfer.</p>
+    </details>
+
+    <details>
+      <summary>Is this app safe / is my data private?</summary>
+      <p>Yes. The app communicates exclusively over USB — no network calls, no telemetry, no cloud. All file access requires your explicit Trust confirmation on your iPhone. Source code is available in the repository.</p>
+    </details>
+
+    <details>
+      <summary>HEIC files won't open in Windows — what do I do?</summary>
+      <ul>
+        <li>Open the <strong>Microsoft Store</strong></li>
+        <li>Search for <strong>HEIF Image Extensions</strong> — install it (free)</li>
+        <li>Also install <strong>HEVC Video Extensions</strong> (free from your device manufacturer)</li>
+        <li>Restart Photos app — HEIC files will now open normally</li>
+      </ul>
+    </details>
+
+  </div>
+</section>
+
+<!-- Footer -->
+<footer>
+  <p style="margin-bottom:.4rem">
+    iPhone Photo Transfer &nbsp;·&nbsp; v__VERSION__ &nbsp;·&nbsp; Personal use only
+  </p>
+  <p>
+    Built with ♥ using C# + WPF + libimobiledevice &nbsp;·&nbsp;
+    <a href="https://github.com/libimobiledevice/libimobiledevice" target="_blank" rel="noopener">libimobiledevice</a>
+    &nbsp;·&nbsp;
+    <a href="https://github.com/libimobiledevice-win32/imobiledevice-net" target="_blank" rel="noopener">imobiledevice-net</a>
+  </p>
+  <p style="margin-top:.8rem;font-size:.75rem;color:#aaa">
+    Personal use only. Not affiliated with Apple Inc. iPhone® is a trademark of Apple Inc.
+  </p>
+</footer>
+
+</body>
+</html>

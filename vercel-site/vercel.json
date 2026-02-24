@@ -1,0 +1,52 @@
+{
+  "version": 2,
+  "name": "iphone-photo-transfer",
+  "builds": [
+    {
+      "src": "**/*",
+      "use": "@vercel/static"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/setup.exe",
+      "headers": {
+        "Content-Type": "application/octet-stream",
+        "Content-Disposition": "attachment; filename=\"iPhoneTransfer-Setup.exe\""
+      },
+      "dest": "/setup.exe"
+    },
+    {
+      "src": "/iPhoneTransfer.application",
+      "headers": {
+        "Content-Type": "application/x-ms-application"
+      },
+      "dest": "/iPhoneTransfer.application"
+    },
+    {
+      "src": "/Application Files/(.*)\\.application",
+      "headers": {
+        "Content-Type": "application/x-ms-application"
+      },
+      "dest": "/Application Files/$1.application"
+    },
+    {
+      "src": "/Application Files/(.*)\\.manifest",
+      "headers": {
+        "Content-Type": "application/x-ms-manifest"
+      },
+      "dest": "/Application Files/$1.manifest"
+    },
+    {
+      "src": "/Application Files/(.*)\\.deploy",
+      "headers": {
+        "Content-Type": "application/octet-stream"
+      },
+      "dest": "/Application Files/$1.deploy"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/$1"
+    }
+  ]
+}

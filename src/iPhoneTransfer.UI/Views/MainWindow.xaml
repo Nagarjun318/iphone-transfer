@@ -1,0 +1,288 @@
+<Window x:Class="iPhoneTransfer.UI.Views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ui="http://schemas.modernwpf.com/2019"
+        xmlns:vm="clr-namespace:iPhoneTransfer.UI.ViewModels"
+        ui:WindowHelper.UseModernWindowStyle="True"
+        Title="iPhone Photo Transfer" 
+        Height="700" 
+        Width="1200"
+        MinHeight="500"
+        MinWidth="800">
+    
+    <Window.Resources>
+        <!-- WHY: Convert byte array to WPF ImageSource for thumbnail display -->
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+    </Window.Resources>
+    
+    <Grid>
+        <Grid.RowDefinitions>
+            <!-- Device status bar -->
+            <RowDefinition Height="Auto"/>
+            <!-- Toolbar -->
+            <RowDefinition Height="Auto"/>
+            <!-- Main content area (photo grid) -->
+            <RowDefinition Height="*"/>
+            <!-- Transfer progress -->
+            <RowDefinition Height="Auto"/>
+            <!-- Status bar -->
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- DEVICE STATUS BAR -->
+        <Border Grid.Row="0" Background="#FF2196F3" Padding="15,10">
+            <StackPanel>
+                <!-- WHY: Show when device is connected -->
+                <StackPanel Visibility="{Binding IsDeviceConnected, Converter={StaticResource BoolToVis}}">
+                    <TextBlock FontSize="16" FontWeight="Bold" Foreground="White">
+                        <Run Text="📱 "/>
+                        <Run Text="{Binding ConnectedDevice.DeviceName, Mode=OneWay}"/>
+                    </TextBlock>
+                    <TextBlock FontSize="12" Foreground="White" Opacity="0.9">
+                        <Run Text="{Binding ConnectedDevice.ProductType, Mode=OneWay}"/>
+                        <Run Text=" • iOS "/>
+                        <Run Text="{Binding ConnectedDevice.ProductVersion, Mode=OneWay}"/>
+                        <Run Text=" • Battery: "/>
+                        <Run Text="{Binding ConnectedDevice.BatteryLevel, Mode=OneWay}"/>
+                        <Run Text="%"/>
+                    </TextBlock>
+                </StackPanel>
+
+                <!-- WHY: Show when device is NOT connected -->
+                <TextBlock FontSize="14" Foreground="White" 
+                          Visibility="{Binding IsDeviceConnected, Converter={StaticResource BoolToVis}, ConverterParameter=Inverted}">
+                    ⚠️ No iPhone connected. Please connect your iPhone via USB and unlock it.
+                </TextBlock>
+            </StackPanel>
+        </Border>
+
+        <!-- TOOLBAR -->
+        <Border Grid.Row="1" BorderBrush="#FFE0E0E0" BorderThickness="0,0,0,1" Padding="10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Left side: Action buttons -->
+                <StackPanel Orientation="Horizontal" Grid.Column="0" Spacing="10">
+                    <!-- WHY: Scan for photos button -->
+                    <Button Command="{Binding ScanPhotosCommand}" 
+                            Content="🔍 Scan Photos" 
+                            Padding="15,8"
+                            MinWidth="120"/>
+
+                    <!-- WHY: Select/Deselect all -->
+                    <Button Command="{Binding SelectAllCommand}" 
+                            Content="☑️ Select All" 
+                            Padding="15,8"
+                            MinWidth="100"/>
+
+                    <Button Command="{Binding DeselectAllCommand}" 
+                            Content="☐ Deselect All" 
+                            Padding="15,8"
+                            MinWidth="100"/>
+
+                    <!-- WHY: Show scan progress -->
+                    <TextBlock Text="{Binding ScanProgress}" 
+                              VerticalAlignment="Center"
+                              FontStyle="Italic"
+                              Foreground="Gray"
+                              Visibility="{Binding IsScanning, Converter={StaticResource BoolToVis}}"/>
+                </StackPanel>
+
+                <!-- Right side: Destination folder -->
+                <StackPanel Orientation="Horizontal" Grid.Column="1" Spacing="10">
+                    <TextBlock Text="📁 Destination:" VerticalAlignment="Center"/>
+                    <TextBox Text="{Binding SelectedFolder, Mode=TwoWay}" 
+                            Width="300" 
+                            IsReadOnly="True"
+                            VerticalAlignment="Center"/>
+                    <Button Command="{Binding SelectFolderCommand}" 
+                            Content="Browse..." 
+                            Padding="15,8"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- MAIN CONTENT: Photo/Video Grid -->
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+            <!-- WHY: Show message when no files -->
+            <TextBlock Text="No photos found. Click 'Scan Photos' to load media files from your iPhone."
+                      HorizontalAlignment="Center"
+                      VerticalAlignment="Center"
+                      FontSize="16"
+                      Foreground="Gray"
+                      Margin="20">
+                <TextBlock.Visibility>
+                    <MultiBinding Converter="{StaticResource BoolToVis}">
+                        <Binding Path="MediaFiles.Count" Converter="{StaticResource IsZeroConverter}"/>
+                        <Binding Path="IsScanning" Converter="{StaticResource InverseBoolConverter}"/>
+                    </MultiBinding>
+                </TextBlock.Visibility>
+            </TextBlock>
+
+            <!-- WHY: ItemsControl with WrapPanel = responsive grid layout -->
+            <ItemsControl ItemsSource="{Binding MediaFiles}" Margin="10">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <!-- WHY: WrapPanel automatically flows items into rows -->
+                        <WrapPanel/>
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <!-- Each media file card -->
+                        <Border Width="180" 
+                               Height="220" 
+                               Margin="5" 
+                               BorderBrush="#FFE0E0E0" 
+                               BorderThickness="1" 
+                               CornerRadius="4"
+                               Background="White">
+                            <Border.Effect>
+                                <DropShadowEffect BlurRadius="5" ShadowDepth="2" Opacity="0.3"/>
+                            </Border.Effect>
+
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="140"/> <!-- Thumbnail area -->
+                                    <RowDefinition Height="*"/>   <!-- Info area -->
+                                </Grid.RowDefinitions>
+
+                                <!-- THUMBNAIL -->
+                                <Border Grid.Row="0" Background="#FFF0F0F0">
+                                    <!-- WHY: Show thumbnail if loaded -->
+                                    <Image Source="{Binding ThumbnailData}" 
+                                          Stretch="Uniform"
+                                          Visibility="{Binding ThumbnailData, Converter={StaticResource NullToVisConverter}}"/>
+
+                                    <!-- WHY: Show placeholder icon if no thumbnail -->
+                                    <TextBlock Text="{Binding Extension}" 
+                                              FontSize="32" 
+                                              Foreground="Gray" 
+                                              HorizontalAlignment="Center" 
+                                              VerticalAlignment="Center"
+                                              Visibility="{Binding ThumbnailData, Converter={StaticResource NullToVisConverter}, ConverterParameter=Inverted}"/>
+
+                                    <!-- WHY: Video overlay icon -->
+                                    <TextBlock Text="▶️" 
+                                              FontSize="48" 
+                                              HorizontalAlignment="Center" 
+                                              VerticalAlignment="Center"
+                                              Opacity="0.8"
+                                              Visibility="{Binding Type, Converter={StaticResource EnumToVisConverter}, ConverterParameter=Video}"/>
+                                </Border>
+
+                                <!-- INFO AREA -->
+                                <StackPanel Grid.Row="1" Padding="8" Background="White">
+                                    <!-- Checkbox for selection -->
+                                    <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}" 
+                                             Content="{Binding FileName}" 
+                                             FontWeight="SemiBold"
+                                             FontSize="11"/>
+
+                                    <!-- File size -->
+                                    <TextBlock Text="{Binding FormattedSize}" 
+                                              FontSize="10" 
+                                              Foreground="Gray" 
+                                              Margin="0,2,0,0"/>
+
+                                    <!-- Date -->
+                                    <TextBlock Text="{Binding CreatedDate, StringFormat='📅 {0:MMM d, yyyy}'}" 
+                                              FontSize="10" 
+                                              Foreground="Gray"/>
+
+                                    <!-- Live Photo indicator -->
+                                    <TextBlock Text="⚡ Live Photo" 
+                                              FontSize="9" 
+                                              Foreground="#FF2196F3" 
+                                              FontWeight="Bold"
+                                              Visibility="{Binding LivePhotoCompanionPath, Converter={StaticResource NullToVisConverter}}"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+
+        <!-- TRANSFER PROGRESS PANEL -->
+        <Border Grid.Row="3" 
+               BorderBrush="#FFE0E0E0" 
+               BorderThickness="0,1,0,0" 
+               Padding="15"
+               Background="#FFF8F8F8"
+               Visibility="{Binding IsTransferring, Converter={StaticResource BoolToVis}}">
+            <StackPanel>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Progress info -->
+                    <StackPanel Grid.Column="0">
+                        <TextBlock FontWeight="Bold" FontSize="14">
+                            <Run Text="Transferring: "/>
+                            <Run Text="{Binding TransferProgress.CurrentFile.FileName, Mode=OneWay}"/>
+                        </TextBlock>
+
+                        <TextBlock FontSize="12" Foreground="Gray" Margin="0,4,0,0">
+                            <Run Text="File "/>
+                            <Run Text="{Binding TransferProgress.FilesCompleted, Mode=OneWay}"/>
+                            <Run Text=" of "/>
+                            <Run Text="{Binding TransferProgress.TotalFiles, Mode=OneWay}"/>
+                            <Run Text=" • "/>
+                            <Run Text="{Binding TransferProgress.PercentComplete, Mode=OneWay, StringFormat='{}{0:F1}%'}"/>
+                            <Run Text=" • "/>
+                            <Run Text="{Binding TransferProgress.EstimatedTimeRemaining, Mode=OneWay, StringFormat='{}~{0:mm\\:ss} remaining'}"/>
+                        </TextBlock>
+
+                        <!-- Progress bar -->
+                        <ProgressBar Value="{Binding TransferProgress.PercentComplete, Mode=OneWay}" 
+                                    Maximum="100" 
+                                    Height="8" 
+                                    Margin="0,8,0,0"/>
+                    </StackPanel>
+
+                    <!-- Cancel button -->
+                    <Button Grid.Column="1" 
+                           Command="{Binding CancelCommand}" 
+                           Content="❌ Cancel" 
+                           Padding="15,8"
+                           VerticalAlignment="Center"/>
+                </Grid>
+            </StackPanel>
+        </Border>
+
+        <!-- STATUS BAR -->
+        <Border Grid.Row="4" 
+               Background="#FF37474F" 
+               Padding="10,6">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Status message -->
+                <TextBlock Grid.Column="0" 
+                          Text="{Binding StatusMessage}" 
+                          Foreground="White" 
+                          VerticalAlignment="Center"/>
+
+                <!-- Transfer button -->
+                <Button Grid.Column="1" 
+                       Command="{Binding StartTransferCommand}" 
+                       Content="📤 Transfer Selected Files" 
+                       Padding="20,8"
+                       FontWeight="Bold"
+                       Background="#FF4CAF50"
+                       Foreground="White"
+                       BorderThickness="0"/>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

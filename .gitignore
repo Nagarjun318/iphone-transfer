@@ -1,0 +1,107 @@
+# .gitignore for iPhone Transfer App
+
+## WHY: Prevents committing generated files, secrets, and OS-specific files
+
+# Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Ww][Ii][Nn]32/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+publish/
+
+# WHY: Visual Studio cache files
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# WHY: Rider IDE files
+.idea/
+*.sln.iml
+
+# WHY: VS Code settings (keep .vscode/tasks.json if you want to share tasks)
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# WHY: NuGet packages (restore from packages.config/project.json)
+*.nupkg
+*.snupkg
+**/packages/*
+!**/packages/build/
+
+# WHY: User-specific files
+*.rsuser
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# WHY: Test results
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+*.trx
+*.coverage
+*.coveragexml
+
+# WHY: ReSharper
+_ReSharper*/
+*.[Rr]e[Ss]harper
+*.DotSettings.user
+
+# WHY: NCrunch (testing tool)
+_NCrunch_*
+.*crunch*.local.xml
+nCrunchTemp_*
+
+# WHY: Windows temp files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# WHY: macOS files (for cross-platform development)
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# WHY: Pairing records contain private keys - NEVER commit
+*.plist
+!**/Info.plist  # Except app Info.plist files
+
+# WHY: Sensitive data
+appsettings.Development.json
+*.pfx
+*.cer
+*.key
+
+# WHY: Local configuration
+launchSettings.json
+
+# WHY: Temporary files
+*.tmp
+*.temp
+*.bak
+*.swp
+*~
+
+# WHY: Logs
+*.log
+
+# WHY: SQLite databases (if added later)
+*.db
+*.sqlite
+*.sqlite3
